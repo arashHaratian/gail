@@ -1,0 +1,56 @@
+epochs: 1
+episodes: 1000
+
+start_node:
+  x: 1
+  y: 1
+  z: 2
+
+goal_node:
+  x: 39
+  y: 39
+  z: 5
+
+higher_limit:
+  x: 42
+  y: 42
+  z: 6
+
+lower_limit:
+  x: 0
+  y: 0
+  z: 0
+
+save_models: True
+load_models: True
+model_names: 
+  dqn_target: 'model_target_DQN' 
+  dqn_eval: 'model_eval_DQN' 
+  dqn_per: 'new_model_dqn_per'
+  nn_model: 'nn_model'
+
+exctract_list_to_plot: True
+show_training_phase: False
+show_final_trajectory: True
+
+# options ['3D_tubes', 'city_street_periphery', 'city_street_urban', 
+#          'disaster_2d_1', 'disaster_2d_2', 'disaster_3d', 'eucalypte_forest',
+#          'mine_1', 'mine_2', 'narrow_gap', 'rain_forest']
+env_type: 'rain_forest'
+# Range [0 - 9]
+env_number: 17
+
+rewards:
+  initial: 20
+  max: 1000
+  obstacle: -50
+  out: -100
+  step: 0
+  uncertainty_obstacle: -10
+
+
+# options ['dqn', 'dqn_per']
+network: 'dqn_per'
+
+distance_collision: 1 # meters
+plot_speed: 0.01 
