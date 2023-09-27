@@ -50,3 +50,6 @@ def Discrim_net(
     return model
 
     
+def get_reward(model, args):
+    prob = model(*args)
+    return -np.log(tf.clip_by_value(prob, 1e-10, 1))
