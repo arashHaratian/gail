@@ -263,44 +263,34 @@ class GAILRNNTrain(Trainer):
         return expert_acc, learner_acc, discrim_loss
 
     def calculate_cum_value(self, learner_obs, learner_act, learner_len):
-        rewards = self.Discrim.get_reward(
-            learner_obs, learner_act, learner_len).squeeze(1)
+        rewards = self.Discrim.get_reward(learner_obs, learner_act, learner_len).squeeze(1)
 
-        next_obs = self.pad_idx*torch.ones(size=(learner_obs.size(
-            0), learner_obs.size(1) + 1), device=learner_obs.device, dtype=torch.long)
+        next_obs = self.pad_idx*torch.ones(size=(learner_obs.size(0), learner_obs.size(1) + 1), device=learner_obs.device, dtype=torch.long)
         next_obs[:, :learner_obs.size(1)] = learner_obs
-        last_idxs = learner_obs[torch.arange(
-            0, learner_obs.size(0)).long(), learner_len-1]
+        last_idxs = learner_obs[torch.arange(0, learner_obs.size(0)).long(), learner_len-1]
         next_idxs = self.nettransition[last_idxs, learner_act]
-        next_obs[torch.arange(0, learner_obs.size(0)).long(),
-                 learner_len] = next_idxs.to(self.device)
+        next_obs[torch.arange(0, learner_obs.size(0)).long(),learner_len] = next_idxs.to(self.device)
 
         next_len = learner_len+1
         next_obs[next_obs == -1] = self.pad_idx
         next_act_prob = self.Policy.forward(next_obs, next_len)
 
-        action_idxs = torch.Tensor(
-            [i for i in range(self.Policy.action_dim)]).long().to(learner_obs.device)
+        action_idxs = torch.Tensor([i for i in range(self.Policy.action_dim)]).long().to(learner_obs.device)
         action_idxs = torch.cat(learner_obs.size(0)*[action_idxs.unsqueeze(0)])
-        next_values = torch.cat(
-            [self.Value(next_obs, action_idxs[:, i],  next_len) for i in [0, 1, 2]], dim=1)
-        next_value = torch.sum(
-            next_act_prob.probs[:, :3] * next_values, axis=1)
+        next_values = torch.cat([self.Value(next_obs, action_idxs[:, i],  next_len) for i in [0, 1, 2]], dim=1)
+        next_value = torch.sum(next_act_prob.probs[:, :3] * next_values, axis=1)
 
         cum_value = rewards + self.gamma * next_value
         return cum_value
 
     def train_policy(self, learner_obs, learner_len, learner_act, train=True):
         learner_act_prob = self.Policy.forward(learner_obs, learner_len)
-        cum_value = self.calculate_cum_value(
-            learner_obs, learner_act, learner_len)
+        cum_value = self.calculate_cum_value(learner_obs, learner_act, learner_len)
 
-        loss_policy = (cum_value.detach() *
-                       learner_act_prob.log_prob(learner_act)).mean()
+        loss_policy = (cum_value.detach() * learner_act_prob.log_prob(learner_act)).mean()
 
         val_pred = self.Value(learner_obs, learner_act, learner_len)
-        loss_value = self.value_criterion(
-            val_pred, cum_value.detach().view(val_pred.size()))
+        loss_value = self.value_criterion(val_pred, cum_value.detach().view(val_pred.size()))
         entropy = learner_act_prob.entropy().mean()
         # construct computation graph for loss
 
@@ -343,8 +333,7 @@ class GAILRNNTrain(Trainer):
                 sampled_exp_obs = sampled_exp_obs[idxs]
                 sampled_exp_act = sampled_exp_act[idxs]
 
-                sampled_learner_obs, sampled_learner_len, sampled_learner_act = learner_data[
-                    1]
+                sampled_learner_obs, sampled_learner_len, sampled_learner_act = learner_data[1]
                 sampled_learner_len, idxs = torch.sort(
                     sampled_learner_len, descending=True)
                 sampled_learner_obs = sampled_learner_obs[idxs]
@@ -352,32 +341,26 @@ class GAILRNNTrain(Trainer):
 
                 expert_acc, learner_acc, discrim_loss = \
                     self.train_discrim_step(exp_obs=sampled_exp_obs.to(self.device),
-                                            exp_act=sampled_exp_act.to(
-                                                self.device),
-                                            exp_len=sampled_exp_len.to(
-                                                self.device),
-                                            learner_obs=sampled_learner_obs.to(
-                                                self.device),
-                                            learner_act=sampled_learner_act.to(
-                                                self.device),
-                                            learner_len=sampled_learner_len.to(
-                                                self.device)
+                                            exp_act=sampled_exp_act.to(self.device),
+                                            exp_len=sampled_exp_len.to(self.device),
+                                            learner_obs=sampled_learner_obs.to(self.device),
+                                            learner_act=sampled_learner_act.to(self.device),
+                                            learner_len=sampled_learner_len.to(self.device)
                                             )
 
-                result.append(
-                    [expert_acc.detach(), learner_acc.detach(), discrim_loss.detach()])
+                result.append([expert_acc.detach(), learner_acc.detach(), discrim_loss.detach()])
 
         dloss = torch.cat([x[2].unsqueeze(0) for x in result], 0).mean()
         e_acc = torch.cat([x[0].unsqueeze(0) for x in result], 0).mean()
         l_acc = torch.cat([x[1].unsqueeze(0) for x in result], 0).mean()
 
-        self.summary.add_scalar('loss/discrim', dloss.item(), self.summary_cnt)
-        self.summary.add_scalar(
-            'accuracy/expert', e_acc.item(), self.summary_cnt)
-        self.summary.add_scalar(
-            'accuracy/learner', l_acc.item(), self.summary_cnt)
-        print("Training >>> Expert: %.2f%% | Learner: %.2f%%" %
-              (e_acc * 100, l_acc * 100))
+        # self.summary.add_scalar('loss/discrim', dloss.item(), self.summary_cnt)
+        # self.summary.add_scalar(
+        #     'accuracy/expert', e_acc.item(), self.summary_cnt)
+        # self.summary.add_scalar(
+        #     'accuracy/learner', l_acc.item(), self.summary_cnt)
+        # print("Training >>> Expert: %.2f%% | Learner: %.2f%%" %
+        #       (e_acc * 100, l_acc * 100))
 
         # ## Train Posterior
         # for _ in range(self.num_posterior_update):
@@ -388,8 +371,7 @@ class GAILRNNTrain(Trainer):
         for _ in range(self.num_gen_update):
             result = []
             for learner_data in enumerate(learner_loader):
-                sampled_learner_obs, sampled_learner_len, sampled_learner_act = learner_data[
-                    1]
+                sampled_learner_obs, sampled_learner_len, sampled_learner_act = learner_data[1]
                 sampled_learner_len, idxs = torch.sort(
                     sampled_learner_len, descending=True)
                 sampled_learner_obs = sampled_learner_obs[idxs]
@@ -399,21 +381,20 @@ class GAILRNNTrain(Trainer):
                                       sampled_learner_len.to(self.device),
                                       sampled_learner_act.to(self.device)
                                       )
-                result.append(
-                    [loss_policy.detach(), loss_value.detach(), entropy.detach(), loss.detach()])
+                result.append([loss_policy.detach(), loss_value.detach(), entropy.detach(), loss.detach()])
 
         loss_policy = torch.cat([x[0].unsqueeze(0) for x in result], 0).mean()
         loss_value = torch.cat([x[1].unsqueeze(0) for x in result], 0).mean()
         entropy = torch.cat([x[2].unsqueeze(0) for x in result], 0).mean()
         loss = torch.cat([x[3].unsqueeze(0) for x in result], 0).mean()
 
-        self.summary.add_scalar(
-            'loss/policy', loss_policy.item(), self.summary_cnt)
-        self.summary.add_scalar(
-            'loss/value', loss_value.item(), self.summary_cnt)
-        self.summary.add_scalar(
-            'loss/entropy', entropy.item(), self.summary_cnt)
-        self.summary.add_scalar('loss/total', loss.item(), self.summary_cnt)
+        # self.summary.add_scalar(
+        #     'loss/policy', loss_policy.item(), self.summary_cnt)
+        # self.summary.add_scalar(
+        #     'loss/value', loss_value.item(), self.summary_cnt)
+        # self.summary.add_scalar(
+        #     'loss/entropy', entropy.item(), self.summary_cnt)
+        # self.summary.add_scalar('loss/total', loss.item(), self.summary_cnt)
 
     def test(self, exp_obs, exp_act, exp_len, learner_obs, learner_act, learner_len, train_mode="value_policy"):
 
@@ -472,14 +453,14 @@ class GAILRNNTrain(Trainer):
         e_acc = torch.cat([x[0].unsqueeze(0) for x in result], 0).mean()
         l_acc = torch.cat([x[1].unsqueeze(0) for x in result], 0).mean()
 
-        self.summary_test.add_scalar(
-            'loss/discrim', dloss.item(), self.summary_cnt)
-        self.summary_test.add_scalar(
-            'accuracy/expert', e_acc.item(), self.summary_cnt)
-        self.summary_test.add_scalar(
-            'accuracy/learner', l_acc.item(), self.summary_cnt)
-        print("Testing >>> Expert: %.2f%% | Learner: %.2f%%" %
-              (e_acc * 100, l_acc * 100))
+        # self.summary_test.add_scalar(
+        #     'loss/discrim', dloss.item(), self.summary_cnt)
+        # self.summary_test.add_scalar(
+        #     'accuracy/expert', e_acc.item(), self.summary_cnt)
+        # self.summary_test.add_scalar(
+        #     'accuracy/learner', l_acc.item(), self.summary_cnt)
+        # print("Testing >>> Expert: %.2f%% | Learner: %.2f%%" %
+        #       (e_acc * 100, l_acc * 100))
 
         # ## Train Posterior
         # for _ in range(self.num_posterior_update):
