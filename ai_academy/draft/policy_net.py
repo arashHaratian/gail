@@ -20,12 +20,17 @@ def Policy_net(
 
 
     ## StateSeqEmb class in the original code 
-    embed = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(seq_len)
+    state_input = layers.Input(shape=(n_features,))
+    goal_input = layers.Input(shape=(n_features,))
+    state_seq_input = layers.Input(shape=(seq_len,))
+    embed = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input)
     padded_embed = pad_sequences(embed, padding='post')
     x_rnn = layers.StackedRNNCells(
         [layers.GRU(hidden_dim),
         layers.GRU(hidden_dim),
         layers.GRU(hidden_dim)])(padded_embed)
+
+    x = layers.Concatenate(axis=1)([x_rnn, goal_input, state_input])
 
     ## Vanilla Policy class in the original code 
     x = layers.Dense(hidden_dim, activation='relu')(x_rnn)
@@ -41,7 +46,7 @@ def Policy_net(
     prob = layers.Softmax(axis=1)(output)
     action_dist = layers.DistributionLambda(
         lambda p: tfp.distributions.Categorical(p))(prob)
-    model = Model(input_data, action_dist)
+    model = Model([state_input, goal_input, state_seq_input], action_dist)
 
     model.compile(optimizer=Adam(learning_rate=0.01), loss='loss_policy')
 

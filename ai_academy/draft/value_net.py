@@ -32,7 +32,7 @@ def Value_net(
         layers.GRU(hidden_dim),
         layers.GRU(hidden_dim)])(padded_embed)
     
-    x = tf.concat([x_rnn, action], axis=1)
+    x = layers.Concatenate(axis=1)([x_rnn, goal_input, state_input, action])
 
     ## Vanilla Value net class in the original code 
     x = layers.Dense(hidden_dim, activation='relu')(x)
