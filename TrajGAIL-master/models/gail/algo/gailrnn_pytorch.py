@@ -328,14 +328,12 @@ class GAILRNNTrain(Trainer):
             result = []
             for expert_data, learner_data in zip(enumerate(expert_loader), enumerate(learner_loader)):
                 sampled_exp_obs, sampled_exp_len, sampled_exp_act = expert_data[1]
-                sampled_exp_len, idxs = torch.sort(
-                    sampled_exp_len, descending=True)
+                sampled_exp_len, idxs = torch.sort(sampled_exp_len, descending=True)
                 sampled_exp_obs = sampled_exp_obs[idxs]
                 sampled_exp_act = sampled_exp_act[idxs]
 
                 sampled_learner_obs, sampled_learner_len, sampled_learner_act = learner_data[1]
-                sampled_learner_len, idxs = torch.sort(
-                    sampled_learner_len, descending=True)
+                sampled_learner_len, idxs = torch.sort(sampled_learner_len, descending=True)
                 sampled_learner_obs = sampled_learner_obs[idxs]
                 sampled_learner_act = sampled_learner_act[idxs]
 
@@ -372,8 +370,7 @@ class GAILRNNTrain(Trainer):
             result = []
             for learner_data in enumerate(learner_loader):
                 sampled_learner_obs, sampled_learner_len, sampled_learner_act = learner_data[1]
-                sampled_learner_len, idxs = torch.sort(
-                    sampled_learner_len, descending=True)
+                sampled_learner_len, idxs = torch.sort(sampled_learner_len, descending=True)
                 sampled_learner_obs = sampled_learner_obs[idxs]
                 sampled_learner_act = sampled_learner_act[idxs]
                 loss_policy, loss_value, entropy, loss = \
