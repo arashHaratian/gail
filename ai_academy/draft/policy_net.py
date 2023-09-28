@@ -44,11 +44,11 @@ def Policy_net(
     output = tf.where(tf.cast(1-action_domain[last_states], tf.bool), 1e-32, x)
     # output = layers.Dense(n_actions, activation='relu')(x)
     prob = layers.Softmax(axis=1)(output)
-    action_dist = layers.DistributionLambda(
+    action_dist = tfp.layers.DistributionLambda(
         lambda p: tfp.distributions.Categorical(p))(prob)
     model = Model([state_input, goal_input, state_seq_input], action_dist)
 
-    model.compile(optimizer=Adam(learning_rate=0.01), loss='loss_policy')
+    model.compile(optimizer=Adam(learning_rate=0.01), loss=policy_loss)
 
     return model
 

@@ -12,7 +12,7 @@ from keras.utils import pad_sequences
 def Discrim_net(
         # state_seq,
         seq_len,
-        action,
+        # action,
         n_actions: int, 
         n_features: int,
         height: int = 21, 
@@ -25,6 +25,8 @@ def Discrim_net(
     state_input = layers.Input(shape=(n_features,))
     goal_input = layers.Input(shape=(n_features,))
     state_seq_input = layers.Input(shape=(seq_len,))
+    action_input = layers.Input(shape=(n_actions,))
+
     embed = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input)
     padded_embed = pad_sequences(embed, padding='post')
     x_rnn = layers.StackedRNNCells(
@@ -32,7 +34,7 @@ def Discrim_net(
         layers.GRU(hidden_dim),
         layers.GRU(hidden_dim)])(padded_embed)
     
-    x = layers.Concatenate(axis=1)([x_rnn, goal_input, state_input, action])
+    x = layers.Concatenate(axis=1)([state_input, goal_input, state_seq_input, action_input])
 
     ## Vanilla Value net class in the original code 
     x = layers.Dense(hidden_dim, activation='relu')(x)
@@ -44,12 +46,10 @@ def Discrim_net(
     # model = Model([state_input, goal_input, state_seq_input], logit)
     # model.compile(optimizer=Adam(learning_rate=0.01), loss=tf.keras.losses.BinaryCrossentropy(from_logits=True))
 
-    model = Model([state_input, goal_input, state_seq_input], prob)
+    model = Model([state_input, goal_input, state_seq_input, action_input], prob)
     model.compile(optimizer=Adam(learning_rate=0.01), loss=tf.keras.losses.BinaryCrossentropy())
 
     return model
 
     
-def get_reward(model, args):
-    prob = model(*args)
-    return -np.log(tf.clip_by_value(prob, 1e-10, 1))
+
