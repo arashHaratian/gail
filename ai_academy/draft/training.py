@@ -68,7 +68,7 @@ def train_policy_and_value_step(
 
     return_values = calculate_return(value_model, learner_obs, learner_act, learner_len)
 
-    with tf.GradientTape() as tape:
+    with tf.GradientTape() as tape1, tf.GradientTape() as tape2:
         act_prob = policy_model([current_state, goal_state, learner_obs, learner_act])
         policy_loss = (act_prob.log_prob(act_prob) * return_values).mean()
 
@@ -79,10 +79,10 @@ def train_policy_and_value_step(
 
         loss = - (policy_loss - c_1 * loss_value + c_2 * entropy)
 
-    gradients = tape.gradient(loss, policy_model.trainable_weights)
+    gradients = tape1.gradient(loss, policy_model.trainable_weights)
     policy_model.optimizer.apply_gradients(zip(gradients, policy_model.trainable_weights))
     
-    gradients = tape.gradient(loss, value_model.trainable_weights)
+    gradients = tape2.gradient(loss, value_model.trainable_weights)
     value_model.optimizer.apply_gradients(zip(gradients, value_model.trainable_weights))
         
 
