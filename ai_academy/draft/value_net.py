@@ -24,7 +24,7 @@ def Value_net(
     ## StateSeqEmb class in the original code 
     state_input = layers.Input(shape=(n_features,))
     goal_input = layers.Input(shape=(n_features,))
-    state_seq_input = layers.Input(shape=(seq_len,))
+    state_seq_input = layers.Input(shape=(seq_len, n_features))
     action_input = layers.Input(shape=(n_actions,))
 
     embed = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input)

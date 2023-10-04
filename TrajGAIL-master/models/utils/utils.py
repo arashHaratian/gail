@@ -2,18 +2,14 @@ import numpy as np
 import math
 from collections import namedtuple
 import torch
-import datetime
-from tensorboardX import SummaryWriter
+
 
 from torch.utils.data import Dataset, DataLoader
 
 
 class model_summary_writer(object):
-    def __init__(self, summary_name, env):
-        now = datetime.datetime.now()
-        self.summary = SummaryWriter(
-            logdir='log/' + summary_name + '_{}'.format(now.strftime('%Y%m%d_%H%M%S')))
-        self.summary_cnt = 0
+    def __init__(self, env):
+
         self.env = env
 
 

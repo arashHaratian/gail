@@ -8,13 +8,9 @@ from models.utils.plotutils import *
 from models.utils.utils import *
 from mdp import shortestpath
 from models.gail.algo.gailrnn_pytorch import GAILRNNTrain
-from models.gail.network_models.infoq_rnn import infoQ_RNN
 from models.gail.network_models.discriminator_rnn import Discriminator as Discriminator_rnn
-from models.gail.network_models.discriminator_wgail import Discriminator as Discriminator_wgail
 from models.gail.network_models.policy_net_rnn import Policy_net, Value_net, StateSeqEmb
 import argparse
-# import gym
-import time
 import os
 import numpy as np
 import pandas as pd
@@ -46,7 +42,7 @@ def argparser():
     parser.add_argument('--c_1', default=float(1), type=float)
     parser.add_argument('--c_2', default=float(0.01), type=float)
     parser.add_argument('--eps', default=float(1e-6), type=float)
-    parser.add_argument('--cuda', default=True, type=bool)
+    parser.add_argument('--cuda', default=False, type=bool)
     parser.add_argument('--train-mode', default="value_policy", type=str)
     parser.add_argument('--data', default="data/Single_OD/Binomial.csv", type=str)
     parser.add_argument('--num_layers', default=3, type=int)
@@ -139,7 +135,6 @@ def main(args):
 
     for _ in range(args.iteration):
 
-        now = time.time()
         learner_observations, learner_actions, learner_len, learner_rewards =\
             GAILRNN.unroll_trajectory2(
                 num_trajs=args.n_episode, max_length=args.max_length)
@@ -149,13 +144,6 @@ def main(args):
         avg_reward = np.mean(np.sum(learner_rewards * mask, axis=1))
         avg_ind_reward = (learner_rewards * mask).sum() / mask.sum()
         avg_len = learner_len.mean()
-        GAILRNN.summary.add_scalar(
-            'GenTrajs/reward', avg_reward, GAILRNN.summary_cnt)
-        GAILRNN.summary.add_scalar(
-            'GenTrajs/step_reward', avg_ind_reward, GAILRNN.summary_cnt)
-        GAILRNN.summary.add_scalar(
-            'GenTrajs/length', avg_len, GAILRNN.summary_cnt)
-        plot_summary(GAILRNN, exp_trajs, learner_observations)
 
         learner_obs = -1 * np.ones((learner_len.sum(), learner_len.max()))
         learner_act = np.zeros((learner_len.sum()))
@@ -180,10 +168,21 @@ def main(args):
 
         sample_indices = np.random.randint(
             low=0, high=len(exp_trajs), size=args.n_episode)
-        exp_trajs_temp = np.take(a=exp_trajs, indices=sample_indices, axis=0)
+        # exp_trajs_temp = np.take(a=exp_trajs, indices=sample_indices, axis=0)
+        exp_trajs_temp = []
+        for _index in sample_indices:
+            exp_trajs_temp.append(exp_trajs[_index])
         exp_obs, exp_act, exp_len = trajs_to_tensor(exp_trajs_temp)
         exp_obs, exp_act, exp_len = arr_to_tensor(
             find_state, device, exp_obs, exp_act, exp_len)
+        
+        print('exp_obs', exp_obs[0])
+        print('exp_act', exp_act[0])
+        print('exp_len', exp_len[0])
+        print('learner_obs', learner_obs[0])
+        print('learner_act', learner_act[0])
+        print('learner_len', learner_len[0])
+
 
         GAILRNN.train(exp_obs=exp_obs,
                       exp_act=exp_act,
@@ -191,12 +190,12 @@ def main(args):
                       learner_obs=learner_obs,
                       learner_act=learner_act,
                       learner_len=learner_len)
+        
+        
 
-        elapsed = time.time()-now
-        GAILRNN.summary.add_scalar(
-            'GenTrajs/elapsed_time', elapsed, GAILRNN.summary_cnt)
-        print("Total Reward = {:.2f} / Ind. Reward = {:.5f} / Length = {:.2f} / ElapsedTime = {:.2f}".format(
-            avg_reward, avg_ind_reward, avg_len, elapsed))
+
+        print("Total Reward = {:.2f} / Ind. Reward = {:.5f} / Length = {:.2f}".format(
+            avg_reward, avg_ind_reward, avg_len))
 
 
 if __name__ == '__main__':

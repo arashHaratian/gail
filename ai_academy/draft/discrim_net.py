@@ -24,7 +24,7 @@ def Discrim_net(
     ## StateSeqEmb class in the original code 
     state_input = layers.Input(shape=(n_features,))
     goal_input = layers.Input(shape=(n_features,))
-    state_seq_input = layers.Input(shape=(seq_len,))
+    state_seq_input = layers.Input(shape=(seq_len, n_features))
     action_input = layers.Input(shape=(n_actions,))
 
     embed = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input)
@@ -36,7 +36,7 @@ def Discrim_net(
     
     x = layers.Concatenate(axis=1)([state_input, goal_input, state_seq_input, action_input])
 
-    ## Vanilla Value net class in the original code 
+    ## Vanilla Discrim net class in the original code 
     x = layers.Dense(hidden_dim, activation='relu')(x)
     x = layers.Dense(hidden_dim, activation='relu')(x)
     x = layers.Dense(hidden_dim, activation='relu')(x)

@@ -1,9 +1,7 @@
 import torch
 # import tensorflow as tf
 import copy
-# from torch.utils.tensorboard import SummaryWriter
-from tensorboardX import SummaryWriter
-import datetime
+
 
 
 class Trainer:
@@ -29,18 +27,6 @@ class Trainer:
 		self.value_criterion = torch.nn.MSELoss()
 		self.discrim_criterion = torch.nn.BCELoss()
 
-		now=datetime.datetime.now()
-		self.summary = SummaryWriter(logdir = "log/test_{}_lr{}_ud{}_ug{}_g{}_tm{}_data{}_b{}".format(  now.strftime('%Y%m%d_%H%M%S'), 
-																						str(self.lr),
-																						str(self.num_discrim_update),
-																						str(self.num_gen_update),
-																						str(self.gamma) ,
-																						args.train_mode,
-																						args.data,
-																						args.batch_size
-																						 ))
-		self.summary_cnt = 0 
-		self.rnn_summary_cnt = 0
 
 	def pretrain_rnn(self, stateseq, seqlen):
 		raise NotImplementedError
