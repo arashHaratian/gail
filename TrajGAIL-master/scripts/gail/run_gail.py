@@ -28,15 +28,15 @@ def argparser():
     # sys.argv=['']
     parser = argparse.ArgumentParser()
     parser.add_argument('-g', '--gamma', default=0.95, type=float)
-    parser.add_argument('--iteration', default=int(1e5), type=int)
+    parser.add_argument('--iteration', default=int(1), type=int)
     parser.add_argument('--n-episode', default=int(20000), type=int)
     parser.add_argument('--num-step1', default=int(1e4), type=int)
     parser.add_argument('--pretrain-step', default=int(0), type=int)
     parser.add_argument('-b', '--batch-size', default=int(8192), type=int)
     parser.add_argument('-nh', '--hidden', default=int(64), type=int)
     parser.add_argument('-ud', '--num-discrim-update',
-                        default=int(2), type=int)
-    parser.add_argument('-ug', '--num-gen-update', default=int(6), type=int)
+                        default=int(1), type=int)
+    parser.add_argument('-ug', '--num-gen-update', default=int(1), type=int)
     parser.add_argument('-lr', '--learning-rate',
                         default=float(5e-5), type=float)
     parser.add_argument('--c_1', default=float(1), type=float)
@@ -176,13 +176,15 @@ def main(args):
         exp_obs, exp_act, exp_len = arr_to_tensor(
             find_state, device, exp_obs, exp_act, exp_len)
         
-        print('exp_obs', exp_obs[0])
-        print('exp_act', exp_act[0])
-        print('exp_len', exp_len[0])
-        print('learner_obs', learner_obs[0])
-        print('learner_act', learner_act[0])
-        print('learner_len', learner_len[0])
+        # print('exp_obs', exp_obs[0])
+        # print('exp_act', exp_act[0])
+        # print('exp_len', exp_len[0])
+        # print('learner_obs', learner_obs[0])
+        # print('learner_act', learner_act[0])
+        # print('learner_len', learner_len[0])
 
+        print("--------train ---------\n", f"{exp_obs.shape}")
+        print("--------train ---------\n", f"{learner_obs.shape}")
 
         GAILRNN.train(exp_obs=exp_obs,
                       exp_act=exp_act,
