@@ -19,7 +19,6 @@ class Discriminator(Discrim_vanilla):
         # action = exp_act
         # seq_len = exp_len
         # state_seq[state_seq == -1] = self.state_dim
-        # print("--------Discrim ---------\n", f"{state_seq.shape}")
         _, x_rnn = self.StateSeqEmb(state_seq, seq_len)         
         x_rnn = x_rnn[self.num_layers-1,:,:]
         # state = self.one_hotify(state, self.state_dim)

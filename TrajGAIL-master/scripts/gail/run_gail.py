@@ -11,9 +11,9 @@ from models.gail.algo.gailrnn_pytorch import GAILRNNTrain
 from models.gail.network_models.discriminator_rnn import Discriminator as Discriminator_rnn
 from models.gail.network_models.policy_net_rnn import Policy_net, Value_net, StateSeqEmb
 import argparse
+# import gym
 import os
 import numpy as np
-import pandas as pd
 # import tensorflow as tf
 import torch
 
@@ -28,21 +28,21 @@ def argparser():
     # sys.argv=['']
     parser = argparse.ArgumentParser()
     parser.add_argument('-g', '--gamma', default=0.95, type=float)
-    parser.add_argument('--iteration', default=int(1), type=int)
+    parser.add_argument('--iteration', default=int(10), type=int)
     parser.add_argument('--n-episode', default=int(20000), type=int)
     parser.add_argument('--num-step1', default=int(1e4), type=int)
     parser.add_argument('--pretrain-step', default=int(0), type=int)
     parser.add_argument('-b', '--batch-size', default=int(8192), type=int)
     parser.add_argument('-nh', '--hidden', default=int(64), type=int)
     parser.add_argument('-ud', '--num-discrim-update',
-                        default=int(1), type=int)
-    parser.add_argument('-ug', '--num-gen-update', default=int(1), type=int)
+                        default=int(2), type=int)
+    parser.add_argument('-ug', '--num-gen-update', default=int(6), type=int)
     parser.add_argument('-lr', '--learning-rate',
                         default=float(5e-5), type=float)
     parser.add_argument('--c_1', default=float(1), type=float)
     parser.add_argument('--c_2', default=float(0.01), type=float)
     parser.add_argument('--eps', default=float(1e-6), type=float)
-    parser.add_argument('--cuda', default=False, type=bool)
+    parser.add_argument('--cuda', default=True, type=bool)
     parser.add_argument('--train-mode', default="value_policy", type=str)
     parser.add_argument('--data', default="data/Single_OD/Binomial.csv", type=str)
     parser.add_argument('--num_layers', default=3, type=int)
@@ -135,6 +135,7 @@ def main(args):
 
     for _ in range(args.iteration):
 
+        now = time.time()
         learner_observations, learner_actions, learner_len, learner_rewards =\
             GAILRNN.unroll_trajectory2(
                 num_trajs=args.n_episode, max_length=args.max_length)
@@ -144,6 +145,7 @@ def main(args):
         avg_reward = np.mean(np.sum(learner_rewards * mask, axis=1))
         avg_ind_reward = (learner_rewards * mask).sum() / mask.sum()
         avg_len = learner_len.mean()
+
 
         learner_obs = -1 * np.ones((learner_len.sum(), learner_len.max()))
         learner_act = np.zeros((learner_len.sum()))
@@ -168,10 +170,19 @@ def main(args):
 
         sample_indices = np.random.randint(
             low=0, high=len(exp_trajs), size=args.n_episode)
-        # exp_trajs_temp = np.take(a=exp_trajs, indices=sample_indices, axis=0)
+        
+        # print('sample_indices len', len(sample_indices))
+        # print('sample_indices', sample_indices)
+        # print('exp_trajs', len(exp_trajs))
+        # print(exp_trajs)
+        # exp_trajs_temp = np.take(a=[0,1,2], indices=sample_indices, axis=0)
         exp_trajs_temp = []
         for _index in sample_indices:
             exp_trajs_temp.append(exp_trajs[_index])
+        # max_length = max(len(seq) for seq in exp_trajs)
+        # padded_exp_trajs = np.array([np.pad(seq, (0, max_length - len(seq)), mode='constant') for seq in exp_trajs])
+        # exp_trajs_temp = np.take(a=padded_exp_trajs, indices=sample_indices, axis=0)
+
         exp_obs, exp_act, exp_len = trajs_to_tensor(exp_trajs_temp)
         exp_obs, exp_act, exp_len = arr_to_tensor(
             find_state, device, exp_obs, exp_act, exp_len)
@@ -183,22 +194,19 @@ def main(args):
         # print('learner_act', learner_act[0])
         # print('learner_len', learner_len[0])
 
-        print("--------train ---------\n", f"{exp_obs.shape}")
-        print("--------train ---------\n", f"{learner_obs.shape}")
-
         GAILRNN.train(exp_obs=exp_obs,
                       exp_act=exp_act,
                       exp_len=exp_len,
                       learner_obs=learner_obs,
                       learner_act=learner_act,
                       learner_len=learner_len)
-        
-        
 
-
-        print("Total Reward = {:.2f} / Ind. Reward = {:.5f} / Length = {:.2f}".format(
+        print("Total Reward = {:.2f} / Ind. Reward = {:.5f} / Length = {:.2f} ".format(
             avg_reward, avg_ind_reward, avg_len))
 
+
+    # test_obs, test_len = []
+    # policy_output, _, _ = GAILRNNTrain.new_test(test_obs, test_len)
 
 if __name__ == '__main__':
     args = argparser()

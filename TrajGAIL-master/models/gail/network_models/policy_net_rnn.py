@@ -37,6 +37,7 @@ class StateSeqEmb(nn.Module):
         return h, x_rnn
 
 
+
 class Policy_net(Policy_vanilla):
     def __init__(self, state_dim, action_dim, hidden: int, origins, start_code, env, disttype="categorical", num_layers=3):
         super(Policy_net, self).__init__(state_dim, action_dim,

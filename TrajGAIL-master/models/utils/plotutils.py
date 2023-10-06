@@ -224,8 +224,9 @@ def plot_summary(GAIL, exp_trajs , learner_observations, keep_unknown=True):
 
     svf = [x for x in zip(expert_unq, expert_cnt, gail_cnt_temp)]
     
-    svf = np.array(svf,np.float)
-    svf[:,1:] = svf[:,1:].astype(np.float) / np.array([len(exp_trajs) , learner_observations.shape[0]] , np.float) * 100
+    svf = np.array(svf, dtype=np.float64)
+    # svf[:,1:] = svf[:,1:].astype(np.float) / np.array([len(exp_trajs) , learner_observations.shape[0]] , np.float) * 100
+    svf[:, 1:] = svf[:, 1:].astype(np.float64) / np.array([len(exp_trajs), learner_observations.shape[0]], np.float64) * 100
     pd_svf = pd.DataFrame(svf)
     pd_svf.columns = ["StateID","expert","GAIL"]
 

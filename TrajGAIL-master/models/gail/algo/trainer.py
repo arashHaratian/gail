@@ -1,7 +1,7 @@
 import torch
 # import tensorflow as tf
 import copy
-
+import datetime
 
 
 class Trainer:
@@ -27,6 +27,8 @@ class Trainer:
 		self.value_criterion = torch.nn.MSELoss()
 		self.discrim_criterion = torch.nn.BCELoss()
 
+		now=datetime.datetime.now()
+		
 
 	def pretrain_rnn(self, stateseq, seqlen):
 		raise NotImplementedError
