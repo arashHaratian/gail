@@ -175,25 +175,26 @@ def main(args):
         # print('sample_indices', sample_indices)
         # print('exp_trajs', len(exp_trajs))
         # print(exp_trajs)
-        # exp_trajs_temp = np.take(a=[0,1,2], indices=sample_indices, axis=0)
         exp_trajs_temp = []
         for _index in sample_indices:
             exp_trajs_temp.append(exp_trajs[_index])
+        
+
         # max_length = max(len(seq) for seq in exp_trajs)
         # padded_exp_trajs = np.array([np.pad(seq, (0, max_length - len(seq)), mode='constant') for seq in exp_trajs])
-        # exp_trajs_temp = np.take(a=padded_exp_trajs, indices=sample_indices, axis=0)
+
+        # exp_trajs_temp = np.take(a=exp_trajs, indices=sample_indices, axis=0)
 
         exp_obs, exp_act, exp_len = trajs_to_tensor(exp_trajs_temp)
-        exp_obs, exp_act, exp_len = arr_to_tensor(
-            find_state, device, exp_obs, exp_act, exp_len)
+        exp_obs, exp_act, exp_len = arr_to_tensor(find_state, device, exp_obs, exp_act, exp_len)
         
         # print('exp_obs', exp_obs[0])
+        # print('exp_obs', exp_obs[-1])
         # print('exp_act', exp_act[0])
         # print('exp_len', exp_len[0])
         # print('learner_obs', learner_obs[0])
         # print('learner_act', learner_act[0])
         # print('learner_len', learner_len[0])
-
         GAILRNN.train(exp_obs=exp_obs,
                       exp_act=exp_act,
                       exp_len=exp_len,
@@ -201,12 +202,16 @@ def main(args):
                       learner_act=learner_act,
                       learner_len=learner_len)
 
-        print("Total Reward = {:.2f} / Ind. Reward = {:.5f} / Length = {:.2f} ".format(
-            avg_reward, avg_ind_reward, avg_len))
+        print("Total Reward = {:.2f} / Ind. Reward = {:.5f} / Length = {:.2f} ".format(avg_reward, avg_ind_reward, avg_len))
 
 
-    # test_obs, test_len = []
-    # policy_output, _, _ = GAILRNNTrain.new_test(test_obs, test_len)
+
+    print('learner_obs', learner_obs[-1])
+
+
+
+
+    # printpolicy_output
 
 if __name__ == '__main__':
     args = argparser()

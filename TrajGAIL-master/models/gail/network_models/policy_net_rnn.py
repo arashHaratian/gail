@@ -47,6 +47,7 @@ class Policy_net(Policy_vanilla):
         :param env: gym env
         """
         self.num_layers = num_layers
+    
         self.StateSeqEmb = StateSeqEmb(
             self.state_dim, self.action_dim, self.hidden, num_layers)
         self.env = env

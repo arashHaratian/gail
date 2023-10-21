@@ -152,8 +152,7 @@ def trajs_to_tensor(exp_trajs):
     np_trajs = []
     for episode in exp_trajs:
         for i in range(1, len(episode)+1):
-            np_trajs.append(
-                [[x.cur_state for x in episode[:i]], episode[i-1].action])
+            np_trajs.append([[x.cur_state for x in episode[:i]], episode[i-1].action])
 
     expert_len = np.array([len(x[0]) for x in np_trajs])
     maxlen = np.max(expert_len)

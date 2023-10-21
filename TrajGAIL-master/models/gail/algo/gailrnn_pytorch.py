@@ -544,6 +544,7 @@ class GAILRNNTrain(Trainer):
                                               notdone_obslen.to(self.device))
 
             if origin_ratio is not None:
+                print(origin_ratio)
                 if i == 0:
                     origin_ratio = torch.Tensor(origin_ratio).unsqueeze_(0)
                     origin_ratio = torch.cat(
