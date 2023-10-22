@@ -116,9 +116,10 @@ def get_reward(model, data):
 
 
 def unroll_traj(
+        start_obs, goal_state,
         env, policy_net,
-        batch_size, num_trajs, max_len,
-        current_state, goal_state):
+        batch_size, num_trajs, max_len
+        ):
     
     learner_obs = -1 * tf.ones((num_trajs, max_len, 3))
     learner_actions = -1 * tf.ones((num_trajs, ))
@@ -126,18 +127,25 @@ def unroll_traj(
     learner_reward = tf.zeros((num_trajs, max_len))
 
     for i in range(int(num_trajs/ batch_size)):
-        batch_obs, batch_act, batch_len, batch_reward = unroll_batch(env, policy_net,
-                                                                    batch_size, max_len,
-                                                                    current_state, goal_state)
+        # batch_obs, batch_act, batch_len, batch_reward = unroll_batch(start_obs, goal_state, env, policy_net,
+        #                                                             batch_size, max_len
+        #                                                              )
 
         batch_max_length = batch_obs.shape[1]
         if num_trajs - processed > batch_size:
-            learner_obs[(i*batch_size):((i+1)*batch_size), :batch_max_length,:] = batch_obs
+            batch_obs, batch_act, batch_len, batch_reward = unroll_batch(start_obs[(i*batch_size):((i+1)*batch_size), :, :], goal_state,
+                                                                        env, policy_net,
+                                                                        batch_size, max_len)
+            
+            learner_obs[(i*batch_size):((i+1)*batch_size), :batch_max_length, :] = batch_obs
             learner_actions[(i*batch_size):((i+1)*batch_size), :(batch_max_length-1)] = batch_act
             learner_len[(i*batch_size):((i+1)*batch_size)] = batch_len
             learner_reward[(i*batch_size):((i+1)*batch_size), :(batch_max_length-1)] = batch_reward
             processed += batch_obs.shape[0]
         else:
+            batch_obs, batch_act, batch_len, batch_reward = unroll_batch(start_obs[(i*batch_size):, :, :], goal_state, 
+                                                                        env, policy_net,
+                                                                        batch_size, max_len)                                                                        )
             learner_obs[(i*batch_size):((i+1)*batch_size), :batch_max_length, :] = batch_obs[:(num_trajs - processed)]
             learner_actions[(i*batch_size):((i+1)*batch_size), :(batch_max_length-1)] = batch_act[:(num_trajs - processed)]
             learner_len[(i*batch_size):((i+1)*batch_size)] = batch_len[:(num_trajs - processed)]
@@ -155,12 +163,13 @@ def unroll_traj(
 
 
 def unroll_batch(
+        start_obs, goal_state,
         env, policy_net,
-        batch_size, max_len,
-        current_state, goal_state):
+        batch_size, max_len
+        ):
     
-    obs = tf.ones((batch_size, 1, 3)) * -13 # -13 is the start of seq
-    obs_len = tf.ones((batch_size))
+    obs = tf.expand_dims(start_obs, 1) ## Making a (batch, 3) tensor to (batch, len_of_seq, 3) where len_of_seq is 1 now
+    obs_len = tf.ones((batch_size)) ## Size of len_of_seq for each batch
     actions = tf.zeros((batch_size, 1))
     rewards = tf.zeros((batch_size, 1))
 
@@ -171,29 +180,30 @@ def unroll_batch(
         new_column = tf.ones((batch_size, 1))
         new_column = new_column.numpy()
 
+        ## Selects samples that are not done yet
         notdone_obs = obs[~done_mask, :, :]
         # notdone_obs_len = obs_len[~done_mask]
 
         if notdone_obs.shape[0] == 0:
             break
 
-        
-        action_dist = policy_net([current_state, goal_state, notdone_obs])
+        ## select the last in each batch (len_of_seq = to the last)
+        action_dist = policy_net([obs[:, -1, :], goal_state, notdone_obs])
 
         action = action_dist.sample()
 
-        new_state, reward, done = env.step(action)
+        new_state, reward, done = env.step(action) ##TODO
 
         new_column[~done_mask] = new_state
-        obs = tf.concat([obs, new_column], 1)
+        obs = tf.concat([obs, new_column], 1) ## Concat should be in second dim (len_of_seq) ##TODO check the dim in case!
         
         
         new_column[~done_mask] = action
-        actions = tf.concat([actions, new_column], 1)
+        actions = tf.concat([actions, new_column], 1) ## Concat should be in second dim (len_of_seq)
 
 
         new_column[~done_mask] = reward
-        rewards = tf.concat([rewards, new_column], 1)
+        rewards = tf.concat([rewards, new_column], 1) ## Concat should be in second dim (len_of_seq)
 
         done_mask = done 
         obs_len += 1-done_mask

@@ -22,10 +22,10 @@ def Discrim_net(
     ):
 
     ## StateSeqEmb class in the original code 
-    state_input = layers.Input(shape=(n_features,))
-    goal_input = layers.Input(shape=(n_features,))
-    state_seq_input = layers.Input(shape=(seq_len, n_features))
-    action_input = layers.Input(shape=(n_actions,))
+    state_input = layers.Input(shape=(None, n_features)) ## batch, n_features(3)
+    goal_input = layers.Input(shape=(None, n_features)) ## batch, n_features(3)
+    state_seq_input = layers.Input(shape=(None, seq_len, n_features)) ## batch, seq_len, n_features(3)
+    action_input = layers.Input(shape=(None, n_actions)) ## batch, n_actions(6)
 
     embed = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input)
     padded_embed = pad_sequences(embed, padding='post')
