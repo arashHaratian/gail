@@ -66,7 +66,7 @@ def train_policy_and_value_step(
     c_1 = 1,
     c_2 = 0.01):
 
-    return_values = calculate_return(value_model, learner_obs, learner_act, learner_len)
+    return_values = calculate_return(value_model, learner_obs, learner_act, learner_len) ## TODO maybe inside the tapes?
 
     with tf.GradientTape() as tape1, tf.GradientTape() as tape2:
         act_prob = policy_model([current_state, goal_state, learner_obs, learner_act])
@@ -188,7 +188,7 @@ def unroll_batch(
             break
 
         ## select the last in each batch (len_of_seq = to the last)
-        action_dist = policy_net([obs[:, -1, :], goal_state, notdone_obs])
+        action_dist = policy_net([notdone_obs[:, 0, :], goal_state, notdone_obs]) ##TODO check the start and the goal data
 
         action = action_dist.sample()
 

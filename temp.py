@@ -12,6 +12,9 @@ state_inputs_train = tf.random.uniform((batch, n_space))
 goal_inputs_train = tf.random.uniform((batch, n_space))
 y_train_action = tf.random.uniform((batch, n_actions))
 
+seq_len = 200
+env_dim = tf.constant([40, 40, 6])
+
 ## TODO seq_len ## In the original code it is 50 (number of states) 
 ## should ours be 3d?! ## it is used for defininig the length of embeding
 discrim = Discrim_net(seq_len, n_actions, n_space) ## TODO seq_len 
@@ -23,7 +26,7 @@ learner_observations, learner_actions, learner_len, learner_rewards =unroll_traj
                                                                                 batch, num_trajs, max_len)
 
 
-learner_obs = tf.zeros((learner_len.sum(), learner_len.max(), 3)) ## zeros since we mask them in RNN ##TODO problem of cordinate zero!
+learner_obs = tf.zeros((learner_len.sum(), learner_len.max(), n_space)) ## zeros since we mask them in RNN ##TODO problem of cordinate zero!
 learner_act = tf.zeros((learner_len.sum()))
 learner_l = tf.zeros((learner_len.sum()))
 cnt = 0
