@@ -83,6 +83,38 @@ class Maze():
         plt.show()
 
 
+    def step_vectorized(self, state_observations):
+        num_samples = len(state_observations)
+        rewards = np.zeros((num_samples, self.n_actions))
+        dones = np.zeros((num_samples, self.n_actions))
+        new_states = np.array(state_observations)[:, np.newaxis, :].repeat(self.n_actions, axis=1)
+        actions = np.asarray([
+                [0, 1, 0],
+                [0, -1, 0],
+                [1, 0, 0],
+                [-1, 0, 0],
+                [0, 0, 1],
+                [0, 0, -1]
+             ])
+
+        new_states += actions
+        end_node_match = np.all(new_states == self.end_node, axis=2)
+        obstacle_matches = np.all(np.any(new_states[:, :, np.newaxis] == np.array(self.obstacles)[np.newaxis, np.newaxis, :], axis=2), axis=2)
+        out_of_bounds = np.any(
+            (new_states < self.inferior_size_limit) | (new_states > self.superior_size_limit), axis=2
+        )
+
+        rewards[end_node_match] = MAX_REWARD
+        dones[end_node_match] = 1
+        rewards[obstacle_matches] = OBSTACLE_REWARD
+        rewards[out_of_bounds] = OUT_REWARD
+        rewards[(rewards == 0) & ~end_node_match & ~obstacle_matches] = STEP_REWARD
+
+        # new_states = np.clip(new_states, self.inferior_size_limit, np.array(self.superior_size_limit))
+
+        return new_states, rewards, dones
+    
+
     def step(self, action):
         self.time += 1
 
