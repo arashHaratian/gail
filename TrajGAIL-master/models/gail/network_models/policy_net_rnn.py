@@ -76,8 +76,7 @@ class Policy_net(Policy_vanilla):
 
         last_states = state_seq[torch.arange(state_seq.size(0)), seq_len-1]
 
-        masked_logit = self.origin_fc4(x).masked_fill(
-            (1-self.action_domain[last_states]).bool(), -1e32)
+        masked_logit = self.origin_fc4(x).masked_fill((1-self.action_domain[last_states]).bool(), -1e32)
         prob = torch.nn.functional.softmax(masked_logit, dim=1)
 
         # origins_idx = last_states == self.start_code

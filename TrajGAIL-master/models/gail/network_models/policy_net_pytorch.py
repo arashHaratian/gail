@@ -36,8 +36,7 @@ class Policy_net(nn.Module):
 
         self.prob_dim = max(self.action_dim, self.origin_dim)
 
-        self.action_domain = torch.zeros(
-            (len(self.env.states), self.env.max_actions)).long()
+        self.action_domain = torch.zeros((len(self.env.states), self.env.max_actions)).long()
         for i in range(len(self.env.states)):
             s0 = self.env.states[i]
             if not s0 == self.env.terminal:
