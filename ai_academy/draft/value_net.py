@@ -28,6 +28,10 @@ def Value_net(
     state_seq_input = layers.Input(shape=(seq_len, n_space)) ## batch, seq_len, n_space(3) 3:(x,y,z)
     action_input = layers.Input(shape=( n_actions)) ## batch, n_actions(6)
 
+    ## Other options are 
+    # 1- embeding for each dim and then concat 
+    # 2- same as now but have big hidden_dim   (current implmentation, put a big hidden dim)
+    # 3- somehow make x,y,z into one value (for instance sum) and then embed for that
     embed = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input)
 
     ## Embed is (None, seq_len, n_space, hidden_dim) ---reshape---> (None, seq_len, n_space * hidden_dim)
