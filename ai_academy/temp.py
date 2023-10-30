@@ -1,25 +1,45 @@
 import tensorflow as tf
-from ai_academy.draft.discrim_net import Discrim_net
-from ai_academy.draft.policy_net import Policy_net
-from ai_academy.draft.value_net import Value_net
-from ai_academy.draft.training import *
+from draft.discrim_net import Discrim_net
+from draft.policy_net import Policy_net
+from draft.value_net import Value_net
+from draft.training import *
+from maze_env import Maze
+from environment import get_obstacles
+
 batch = 2048
 n_space = 3
 n_actions = 6
 max_len = 100
 num_trajs = batch
-state_inputs_train = tf.random.uniform((batch, n_space))
-goal_inputs_train = tf.random.uniform((batch, n_space))
-y_train_action = tf.random.uniform((batch, n_actions))
 
 seq_len = 200
 env_dim = tf.constant([40, 40, 6])
 
+n_features = 40 + 1
+
+## Setting up the env
+obstacles, obstacles_x, obstacles_y, obstacles_z = get_obstacles()
+env = Maze(obstacles)
+
+start_state = tf.reshape(env.reset(), (1, -1))
+state_inputs_train  = tf.repeat(start_state, batch, 0)
+
+end_state = tf.reshape(env.end_node, (1, -1))
+goal_inputs_train  = tf.repeat(end_state, batch, 0)
+
+
+
+# state_inputs_train = tf.random.uniform((batch, n_space))
+# goal_inputs_train = tf.random.uniform((batch, n_space))
+y_train_action = tf.random.uniform((batch, n_actions))
+
+
+
 ## TODO seq_len ## In the original code it is 50 (number of states) 
 ## should ours be 3d?! ## it is used for defininig the length of embeding
-discrim = Discrim_net(seq_len, n_actions, n_space) ## TODO seq_len 
-policy = Policy_net(seq_len, n_actions, n_space) ## TODO seq_len
-value = Value_net(seq_len, n_actions, n_space) ## TODO seq_len
+discrim = Discrim_net(seq_len, n_actions, n_features) ## TODO seq_len 
+policy = Policy_net(seq_len, n_actions, n_features) ## TODO seq_len
+value = Value_net(seq_len, n_actions, n_features) ## TODO seq_len
 
 learner_observations, learner_actions, learner_len, learner_rewards =unroll_traj(state_inputs_train, goal_inputs_train,
                                                                                 env, policy,

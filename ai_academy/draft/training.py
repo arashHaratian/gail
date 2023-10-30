@@ -100,7 +100,7 @@ def calculate_return(
 
     ## TODO Get the ext state
     next_state = tf.ones((learner_obs.shape[0], learner_obs.shape[1] + 1))
-    next_state[:, :-1] = ???
+    next_state[:, :-1] = "???"
 
     action_prob = policy_net(data.append(learner_act))
     all_actions = list(itertools.product([0, 1], repeat=4)) # 4 is n_actions
@@ -145,7 +145,7 @@ def unroll_traj(
         else:
             batch_obs, batch_act, batch_len, batch_reward = unroll_batch(start_obs[(i*batch_size):, :, :], goal_state, 
                                                                         env, policy_net,
-                                                                        batch_size, max_len)                                                                        )
+                                                                        batch_size, max_len)                                                                        
             learner_obs[(i*batch_size):((i+1)*batch_size), :batch_max_length, :] = batch_obs[:(num_trajs - processed)]
             learner_actions[(i*batch_size):((i+1)*batch_size), :(batch_max_length-1)] = batch_act[:(num_trajs - processed)]
             learner_len[(i*batch_size):((i+1)*batch_size)] = batch_len[:(num_trajs - processed)]
