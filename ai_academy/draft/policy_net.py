@@ -21,16 +21,21 @@ def Policy_net(
 
 
     ## StateSeqEmb class in the original code 
-    state_input = layers.Input(shape=(None, n_space)) ## batch, n_space(3)
-    goal_input = layers.Input(shape=(None, n_space)) ## batch, n_space(3)
-    state_seq_input = layers.Input(shape=(None, seq_len, n_space)) ## batch, seq_len, n_space(3) 3:(x,y,z)
+    state_input = layers.Input(shape=(n_space)) ## batch, n_space(3)
+    goal_input = layers.Input(shape=(n_space)) ## batch, n_space(3)
+    state_seq_input = layers.Input(shape=(None, n_space)) ## batch, seq_len, n_space(3) 3:(x,y,z)
 
     embed = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input)
+    
+    ## Embed is (None, seq_len, n_space, hidden_dim) ---reshape---> (None, seq_len, n_space * hidden_dim)
+    embed = layers.Reshape((-1, n_space * hidden_dim))(embed)
+
      # padded_embed = pad_sequences(embed, padding='post')
-    x_rnn = layers.StackedRNNCells(
+    x_rnn = layers.RNN(
+        layers.StackedRNNCells(
         [layers.GRUCell(hidden_dim),
         layers.GRUCell(hidden_dim),
-        layers.GRUCell(hidden_dim)])(embed)
+        layers.GRUCell(hidden_dim)]))(embed)
 
     x = layers.Concatenate(axis=1)([x_rnn, goal_input, state_input])
 
@@ -40,12 +45,15 @@ def Policy_net(
     x = layers.Dense(hidden_dim, activation='relu')(x)
     x = layers.Dense(n_actions, activation='linear')(x)
 
-    last_states = state_seq_input[tf.range(state_seq_input.shape[0]), seq_len-1, :] ## TODO can we replace seq_len-1 with -1 ##TODO can we replace tf.range(state_seq_input.shape[0]) with :
-    action_domain = tf.zeros((n_features, n_actions)) ##TODO should put 1 for terminal state ## Not sure ... check the code
+    # last_states = state_seq_input[:, seq_len-1, :] ## TODO We have to have access to the sequence lengths not seq_len
+    # action_domain = tf.zeros((n_features, n_actions)) ##TODO should put 1 for terminal state ## Not sure ... check the code
 
-    output = tf.where(tf.cast(1-action_domain[last_states], tf.bool), 1e-32, x)
+    # output = tf.where(tf.cast(1-action_domain[last_states], tf.bool), 1e-32, x)
     # output = layers.Dense(n_actions, activation='relu')(x)
-    prob = layers.Softmax(axis=1)(output)
+    
+    # prob = layers.Softmax(axis=1)(output)
+    prob = layers.Softmax(axis=1)(x)
+
     action_dist = tfp.layers.DistributionLambda(
         lambda p: tfp.distributions.Categorical(p))(prob)
     model = Model([state_input, goal_input, state_seq_input], action_dist)

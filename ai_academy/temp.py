@@ -9,10 +9,10 @@ from environment import get_obstacles
 batch = 2048
 n_space = 3
 n_actions = 6
-max_len = 100
+max_len = 200
 num_trajs = batch
 
-seq_len = 200
+
 env_dim = tf.constant([40, 40, 6])
 
 n_features = 40 + 1
@@ -37,9 +37,9 @@ y_train_action = tf.random.uniform((batch, n_actions))
 
 ## TODO seq_len ## In the original code it is 50 (number of states) 
 ## should ours be 3d?! ## it is used for defininig the length of embeding
-discrim = Discrim_net(seq_len, n_actions, n_features) ## TODO seq_len 
-policy = Policy_net(seq_len, n_actions, n_features) ## TODO seq_len
-value = Value_net(seq_len, n_actions, n_features) ## TODO seq_len
+discrim = Discrim_net(max_len, n_actions, n_features) ## TODO seq_len 
+policy = Policy_net(max_len, n_actions, n_features) ## TODO seq_len
+value = Value_net(max_len, n_actions, n_features) ## TODO seq_len
 
 learner_observations, learner_actions, learner_len, learner_rewards =unroll_traj(state_inputs_train, goal_inputs_train,
                                                                                 env, policy,
