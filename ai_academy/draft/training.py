@@ -182,7 +182,7 @@ def unroll_batch(
     actions = tf.zeros((batch_size, 1))
     rewards = tf.zeros((batch_size, 1))
 
-    done_mask = tf.zeros((batch_size), tf.bool)
+    done_mask = tf.zeros((batch_size), tf.bool).numpy()
 
 
     for i in range(max_len):
@@ -191,7 +191,7 @@ def unroll_batch(
         ## Selects samples that are not done yet
         notdone_obs = tf.boolean_mask(obs, ~done_mask, axis=0)
         # notdone_obs_len = obs_len[~done_mask]
-        print(f"------{notdone_obs.shape[0]} more")
+        # print(f"------{notdone_obs.shape[0]} more")
         if notdone_obs.shape[0] == 0:
             break
 
@@ -199,33 +199,47 @@ def unroll_batch(
         action_dist = policy_net([notdone_obs[:, 0, :], goal_state, notdone_obs]) ##TODO check the start and the goal data
 
         action = action_dist.sample()
-
+        if tf.reduce_max(action) > 5:
+            raise Exception
+        if tf.reduce_min(action) < 0:
+            raise Exception
+        
         new_state, reward, done = env.step_vectorized(notdone_obs[:, -1, :], action) ##TODO
 
-        new_column = tf.zeros((batch_size, 1, 3)) # since zeros are masked
-        new_column = new_column.numpy()
+        new_column = tf.zeros((batch_size, 1, 3)).numpy() # since zeros are masked
         new_column[~done_mask, 0, :] = new_state
         obs = tf.concat([obs, new_column], 1) ## Concat should be in second dim (len_of_seq) ##TODO check the dim in case!
         
         
-        new_column = tf.zeros((batch_size, 1))
-        new_column = new_column.numpy()
+        new_column = tf.zeros((batch_size, 1)).numpy()
         new_column[~done_mask, 0] = action
         actions = tf.concat([actions, new_column], 1) ## Concat should be in second dim (len_of_seq)
 
-        new_column = tf.zeros((batch_size, 1))
-        new_column = new_column.numpy()
+        new_column = tf.zeros((batch_size, 1)).numpy()
         new_column[~done_mask] = reward
         rewards = tf.concat([rewards, new_column], 1) ## Concat should be in second dim (len_of_seq)
 
-        print(obs.shape)
-        print(actions.shape)
-        print(rewards.shape)
-
-
-        done_mask = done 
+        
+        done_mask[~done_mask] = done 
         obs_len += 1-done_mask
-
+        
+        ##### DEBUGGING ###########
+        # print(obs.shape)
+        # print(actions.shape)
+        # print(rewards.shape)
+        # if tf.reduce_any(done):
+        #     newdone_mask = tf.zeros((batch_size), tf.bool).numpy()
+        #     newdone_mask[~done_mask] = done 
+        #     iii = tf.where(newdone_mask)
+        #     print(iii)
+        #     print(done_mask[iii])
+        #     done_mask[~done_mask] = done 
+        #     obs_len += 1-done_mask
+        #     print(done_mask[iii])
+        # else:
+        #     done_mask[~done_mask] = done 
+        #     obs_len += 1-done_mask
+        
     actions = actions[:, 1:]
     rewards = rewards[:, 1:]
     

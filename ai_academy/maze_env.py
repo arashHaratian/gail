@@ -106,11 +106,11 @@ class Maze():
           if type(actions) is not np.array:
             actions_int = np.asarray(actions)
             actions = np.zeros((actions.shape[0], 3))
-            actions[actions_int == 0, :] = np.array([1, 0, 0])
-            actions[actions_int == 1, :] = np.array([0, 1, 0])
-            actions[actions_int == 2, :] = np.array([0, 0, 1])
+            actions[actions_int == 0, :] = np.array([0, 1, 0])
+            actions[actions_int == 1, :] = np.array([0, -1, 0])
+            actions[actions_int == 2, :] = np.array([1, 0, 0])
             actions[actions_int == 3, :] = np.array([-1, 0, 0])
-            actions[actions_int == 4, :] = np.array([0, -1, 0])
+            actions[actions_int == 4, :] = np.array([0, 0, 1])
             actions[actions_int == 5, :] = np.array([0, 0, -1])
 
 
@@ -149,7 +149,7 @@ class Maze():
 
         rewards[mask] = STEP_REWARD
 
-        # new_states = np.clip(new_states, self.inferior_size_limit, np.array(self.superior_size_limit))
+        new_states = np.clip(new_states, self.inferior_size_limit, np.array(self.superior_size_limit))
         if dones_as_bool:
            dones = dones.astype(bool).reshape((-1, ))
         return new_states, rewards, dones

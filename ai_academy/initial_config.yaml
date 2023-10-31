@@ -17,9 +17,9 @@ higher_limit:
   z: 6
 
 lower_limit:
-  x: 0
-  y: 0
-  z: 0
+  x: 1
+  y: 1
+  z: 1
 
 save_models: True
 load_models: True
