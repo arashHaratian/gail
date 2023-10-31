@@ -83,12 +83,11 @@ class Maze():
         plt.show()
 
 
-    def step_vectorized(self, state_observations):
-        num_samples = len(state_observations)
-        rewards = np.zeros((num_samples, self.n_actions))
-        dones = np.zeros((num_samples, self.n_actions))
-        new_states = np.array(state_observations)[:, np.newaxis, :].repeat(self.n_actions, axis=1)
-        actions = np.asarray([
+    def step_vectorized(self, state_observations, actions=None):
+        # Do the actions
+        if actions == None:
+          n_actions = self.n_actions
+          actions = np.asarray([
                 [0, 1, 0],
                 [0, -1, 0],
                 [1, 0, 0],
@@ -96,19 +95,52 @@ class Maze():
                 [0, 0, 1],
                 [0, 0, -1]
              ])
+          if type(state_observations) is not np.array:
+            new_states = np.array(state_observations)[:, np.newaxis, :].repeat(n_actions, axis=1)
+          else:
+            new_states = state_observations[:, np.newaxis, :].repeat(n_actions, axis=1)
+          
+          new_states += actions
+        else:
+          n_actions = 1
+          if type(actions) is not np.array:
+            actions = np.asarray(actions)
 
-        new_states += actions
-        end_node_match = np.all(new_states == self.end_node, axis=2)
-        obstacle_matches = np.all(np.any(new_states[:, :, np.newaxis] == np.array(self.obstacles)[np.newaxis, np.newaxis, :], axis=2), axis=2)
-        out_of_bounds = np.any(
-            (new_states < self.inferior_size_limit) | (new_states > self.superior_size_limit), axis=2
-        )
+          if type(state_observations) is not np.array:
+            new_states = np.asarray(state_observations)
+
+          new_states += actions
+
+        num_samples = len(state_observations)
+        rewards = np.zeros((num_samples, n_actions))
+        dones = np.zeros((num_samples, n_actions))
+
+        # Create masks to end, obstacles, and out of bounds
+        if n_actions == self.n_actions:
+          end_node_match = np.all(new_states == self.end_node, axis=2)
+          obstacle_matches = np.all(np.any(new_states[:, :, np.newaxis] == np.array(self.obstacles)[np.newaxis, np.newaxis, :], axis=2), axis=2)
+          out_of_bounds = np.any(
+              (new_states < self.inferior_size_limit) | (new_states > self.superior_size_limit), axis=2
+          )
+        else:
+          end_node_match = np.all(new_states == self.end_node, axis=1)
+          obstacle_matches = np.all(new_states[:, None] == self.obstacles, axis=2).any(axis=1)
+          out_of_bounds = np.any(
+              (new_states < self.inferior_size_limit) | (new_states > self.superior_size_limit), axis=1
+          )
 
         rewards[end_node_match] = MAX_REWARD
         dones[end_node_match] = 1
         rewards[obstacle_matches] = OBSTACLE_REWARD
         rewards[out_of_bounds] = OUT_REWARD
-        rewards[(rewards == 0) & ~end_node_match & ~obstacle_matches] = STEP_REWARD
+
+        # Final mask
+        if n_actions == self.n_actions:
+          mask = (rewards == 0) & ~end_node_match & ~obstacle_matches
+        else:
+          mask = (rewards == 0) & ~end_node_match[:, np.newaxis] & ~obstacle_matches[:, np.newaxis]
+
+        rewards[mask] = STEP_REWARD
 
         # new_states = np.clip(new_states, self.inferior_size_limit, np.array(self.superior_size_limit))
 
