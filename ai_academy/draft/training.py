@@ -7,7 +7,7 @@ def train(
         policy_model, value_model, discrim_model,
         learner_obs, learner_act, learner_len,
         expert_obs, expert_act, expert_len,
-        current_state, goal_state,
+        start_state, goal_state,
         num_discrim_update = 2, num_gen_update = 6):
     
 
@@ -17,26 +17,26 @@ def train(
         train_discrim_step(discrim_model,
                            learner_obs, learner_act, learner_len,
                            expert_obs, expert_act, expert_len,
-                           current_state, goal_state)
+                           start_state, goal_state)
 
     for _ in range(num_gen_update):
         train_policy_and_value_step(policy_model, value_model,
                                     learner_obs, learner_act, learner_len,
-                                    current_state, goal_state)
+                                    start_state, goal_state)
 
 
 def train_discrim_step(
     discrim_model,
     learner_obs, learner_act, learner_len,
     expert_obs, expert_act, expert_len,
-    current_state, goal_state):
+    start_state, goal_state):
     
     ## ================= solution 1 ==================================
     
     with tf.GradientTape() as tape:
         
-        learner_target = discrim_model([current_state, goal_state, learner_obs, learner_act])
-        expert_target = discrim_model([current_state, goal_state, expert_obs, expert_act])
+        learner_target = discrim_model([start_state, goal_state, learner_obs, learner_act])
+        expert_target = discrim_model([start_state, goal_state, expert_obs, expert_act])
 
         cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True) ## TODO if from_logit should be there or no!! if yes add it to the nework optim too
         real_loss = cross_entropy(tf.ones_like(expert_target), expert_target)
@@ -49,8 +49,8 @@ def train_discrim_step(
             
 
     ## ================= solution 2 ==================================
-    input_data = tf.concat([[current_state, goal_state, learner_obs, learner_act],
-                  [current_state, goal_state, expert_obs, expert_act]], axis = 0) 
+    input_data = tf.concat([[start_state, goal_state, learner_obs, learner_act],
+                  [start_state, goal_state, expert_obs, expert_act]], axis = 0) 
     target_data = tf.concat([tf.zeros(learner_len,), tf.ones(expert_len,)], axis = 0)
     discrim_model.fit(input_data, target_data)
     
@@ -62,17 +62,17 @@ def train_policy_and_value_step(
     policy_model,
     value_model,
     learner_obs, learner_act, learner_len,
-    current_state, goal_state,
+    start_state, goal_state,
     c_1 = 1,
     c_2 = 0.01):
 
     return_values = calculate_return(value_model, learner_obs, learner_act, learner_len) ## TODO maybe inside the tapes?
 
     with tf.GradientTape() as tape1, tf.GradientTape() as tape2:
-        act_prob = policy_model([current_state, goal_state, learner_obs, learner_act])
+        act_prob = policy_model([start_state, goal_state, learner_obs, learner_act])
         policy_loss = (act_prob.log_prob(act_prob) * return_values).mean()
 
-        val_pred = value_model([current_state, goal_state, learner_obs, learner_act])
+        val_pred = value_model([start_state, goal_state, learner_obs, learner_act])
         loss_value = value_model.optimizer(val_pred, return_values)
         
         entropy = act_prob.entropy().mean()
@@ -91,22 +91,26 @@ def train_policy_and_value_step(
 
 
 def calculate_return(
-    policy_net, value_net, discrim_model,
+    policy_net, value_net, discrim_model, env,
     learner_obs, learner_act, learner_len,
-    current_state, goal_state):
+    start_state, goal_state):
 
-    data = [current_state, goal_state, learner_obs]
-    rewards = get_reward(discrim_model, data)
+    batch_size = learner_obs.shape[0]
+    # rewards = get_reward(discrim_model, data)
+    current_state = learner_obs[:, learner_len-1,:]
+    new_states, rewards, _ = env.step_vectorized(current_state, learner_act)
 
     ## TODO Get the ext state
-    next_state = tf.ones((learner_obs.shape[0], learner_obs.shape[1] + 1))
-    next_state[:, :-1] = "???"
+    new_learner_obs = tf.zeros((batch_size, learner_obs.shape[1] + 1, 3))
+    new_learner_obs[:, :learner_act, :] = learner_obs
+    new_learner_obs[:, learner_act, :] = new_states
 
-    action_prob = policy_net(data.append(learner_act))
-    all_actions = list(itertools.product([0, 1], repeat=4)) # 4 is n_actions
-    next_values = [value_net(data.append(action)) for action in all_actions]
-    
-    expected_return = tf.reduce_sum(next_values * action_prob, axis = 1) + rewards
+    action_prob = policy_net([start_state, goal_state, new_learner_obs])
+
+    all_actions = tf.stack([tf.one_hot(i, 6) for i in range(6)]) # 6 is n_actions
+    next_values = [value_net([start_state, goal_state, new_learner_obs, tf.repeat(tf.expand_dims(action, 0), batch_size, 0)]) for action in all_actions]
+    next_values = tf.concat(next_values, axis = 1)
+    expected_return = tf.reduce_sum(next_values * action_prob.probs(), axis = 1) + rewards
 
     return expected_return
 
