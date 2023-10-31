@@ -21,6 +21,9 @@ n_features = 40 + 1
 obstacles, obstacles_x, obstacles_y, obstacles_z = get_obstacles()
 env = Maze(obstacles)
 
+
+## TODO randomize the starts
+
 start_state = tf.reshape(env.reset(), (1, -1))
 state_inputs_train  = tf.repeat(start_state, batch, 0)
 
@@ -28,18 +31,13 @@ end_state = tf.reshape(env.end_node, (1, -1))
 goal_inputs_train  = tf.repeat(end_state, batch, 0)
 
 
-
-# state_inputs_train = tf.random.uniform((batch, n_space))
-# goal_inputs_train = tf.random.uniform((batch, n_space))
+## TODO use bi_a_star_2.py
 y_train_action = tf.random.uniform((batch, n_actions))
 
 
-
-## TODO seq_len ## In the original code it is 50 (number of states) 
-## should ours be 3d?! ## it is used for defininig the length of embeding
-discrim = Discrim_net(max_len, n_actions, n_features) ## TODO seq_len 
-policy = Policy_net(max_len, n_actions, n_features) ## TODO seq_len
-value = Value_net(max_len, n_actions, n_features) ## TODO seq_len
+discrim = Discrim_net(n_actions, n_features) 
+policy = Policy_net(n_actions, n_features)
+value = Value_net(n_actions, n_features)
 
 learner_observations, learner_actions, learner_len, learner_rewards =unroll_traj(state_inputs_train, goal_inputs_train,
                                                                                 env, policy,
