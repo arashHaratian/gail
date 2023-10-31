@@ -83,7 +83,7 @@ class Maze():
         plt.show()
 
 
-    def step_vectorized(self, state_observations, actions=None):
+    def step_vectorized(self, state_observations, actions=None, dones_as_bool = True):
         # Do the actions
         if actions == None:
           n_actions = self.n_actions
@@ -104,12 +104,19 @@ class Maze():
         else:
           n_actions = 1
           if type(actions) is not np.array:
-            actions = np.asarray(actions)
+            actions_int = np.asarray(actions)
+            actions = np.zeros((actions.shape[0], 3))
+            actions[actions_int == 0, :] = np.array([1, 0, 0])
+            actions[actions_int == 1, :] = np.array([0, 1, 0])
+            actions[actions_int == 2, :] = np.array([0, 0, 1])
+            actions[actions_int == 3, :] = np.array([-1, 0, 0])
+            actions[actions_int == 4, :] = np.array([0, -1, 0])
+            actions[actions_int == 5, :] = np.array([0, 0, -1])
+
 
           if type(state_observations) is not np.array:
             new_states = np.asarray(state_observations)
-
-          new_states += actions
+          new_states = new_states + actions
 
         num_samples = len(state_observations)
         rewards = np.zeros((num_samples, n_actions))
@@ -143,7 +150,8 @@ class Maze():
         rewards[mask] = STEP_REWARD
 
         # new_states = np.clip(new_states, self.inferior_size_limit, np.array(self.superior_size_limit))
-
+        if dones_as_bool:
+           dones = dones.astype(bool).reshape((-1, ))
         return new_states, rewards, dones
     
 

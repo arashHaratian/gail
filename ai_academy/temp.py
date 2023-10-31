@@ -9,8 +9,8 @@ from environment import get_obstacles
 batch = 2048
 n_space = 3
 n_actions = 6
-max_len = 200
-num_trajs = batch
+max_len = 20
+num_trajs = batch+10
 
 
 env_dim = tf.constant([40, 40, 6])
@@ -25,14 +25,14 @@ env = Maze(obstacles)
 ## TODO randomize the starts
 
 start_state = tf.reshape(env.reset(), (1, -1))
-state_inputs_train  = tf.repeat(start_state, batch, 0)
+state_inputs_train  = tf.repeat(start_state, num_trajs, 0)
 
 end_state = tf.reshape(env.end_node, (1, -1))
-goal_inputs_train  = tf.repeat(end_state, batch, 0)
+goal_inputs_train  = tf.repeat(end_state, num_trajs, 0)
 
 
 ## TODO use bi_a_star_2.py
-y_train_action = tf.random.uniform((batch, n_actions))
+y_train_action = tf.random.uniform((num_trajs, n_actions))
 
 
 discrim = Discrim_net(n_actions, n_features) 
