@@ -68,8 +68,7 @@ def Policy_net(
     # prob = layers.Softmax(axis=1)(output)
     prob = layers.Softmax(axis=1)(x)
 
-    action_dist = tfp.layers.DistributionLambda(
-        lambda p: tfp.distributions.Categorical(p))(prob)
+    action_dist = tfp.layers.DistributionLambda(lambda p: tfp.distributions.Categorical(p))(prob)
     model = Model([start_input, goal_input, state_seq_input], action_dist)
 
     model.compile(optimizer=Adam(learning_rate=0.01))

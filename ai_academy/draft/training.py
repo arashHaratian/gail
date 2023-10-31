@@ -200,6 +200,7 @@ def unroll_batch(
         action_dist = policy_net([notdone_obs[:, 0, :], goal_state, notdone_obs]) ##TODO check the start and the goal data
 
         action = action_dist.sample()
+        action = tf.one_hot(action, action_dist.logits.shape[1]) ## action_dist.logits.shape should be (batch_size,n_actions)
 
         new_state, reward, done = env.step_vectorized(notdone_obs, action) ##TODO
 
