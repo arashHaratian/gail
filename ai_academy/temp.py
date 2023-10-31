@@ -5,6 +5,8 @@ from draft.value_net import Value_net
 from draft.training import *
 from maze_env import Maze
 from environment import get_obstacles
+import itertools
+import random
 
 batch = 2048
 n_space = 3
@@ -22,10 +24,10 @@ obstacles, obstacles_x, obstacles_y, obstacles_z = get_obstacles()
 env = Maze(obstacles)
 
 
-## TODO randomize the starts
-
-start_state = tf.reshape(env.reset(), (1, -1))
-state_inputs_train  = tf.repeat(start_state, num_trajs, 0)
+start_axis_range = 6
+all_starts = [[*t] for t in itertools.product(range(1, start_axis_range + 1), repeat = n_space)]
+state_inputs_train = [start for start in all_starts if start not in obstacles]
+state_inputs_train = tf.constant(random.choices(state_inputs_train, k = num_trajs))
 
 end_state = tf.reshape(env.end_node, (1, -1))
 goal_inputs_train  = tf.repeat(end_state, num_trajs, 0)
