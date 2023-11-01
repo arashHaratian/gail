@@ -101,10 +101,10 @@ def train_discrim_step(
             
 
     ## ================= solution 2 ==================================
-    input_data = tf.concat([[learner_start_state, learner_goal_state, learner_obs, learner_act],
-                  [expert_start_state, expert_goal_state, expert_obs, expert_act]], axis = 0) 
-    target_data = tf.concat([tf.zeros(learner_len,), tf.ones(expert_len,)], axis = 0)
-    discrim_model.fit(input_data, target_data)
+    # input_data = tf.concat([[learner_start_state, learner_goal_state, learner_obs, learner_act],
+    #               [expert_start_state, expert_goal_state, expert_obs, expert_act]], axis = 0) 
+    # target_data = tf.concat([tf.zeros(learner_len,), tf.ones(expert_len,)], axis = 0)
+    # discrim_model.fit(input_data, target_data)
     
     return
 
@@ -249,7 +249,7 @@ def unroll_batch(
             break
 
         ## select the last in each batch (len_of_seq = to the last)
-        action_dist = policy_net([notdone_obs[:, 0, :], goal_state, notdone_obs]) ##TODO check the start and the goal data
+        action_dist = policy_net([notdone_obs[:, 0, :], tf.boolean_mask(obs, ~done_mask, axis=0), notdone_obs]) ##TODO check the start and the goal data
 
         action = action_dist.sample()
         if tf.reduce_max(action) > 5:
