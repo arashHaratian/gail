@@ -35,7 +35,7 @@ def Value_net(
     start_input = layers.Input(shape=(n_space)) ## batch, n_space(3)    
     goal_input = layers.Input(shape=(n_space)) ## batch, n_space(3)
     state_seq_input = layers.Input(shape=(None, n_space)) ## batch, seq_len, n_space(3) 3:(x,y,z) ,  `seq_len` is varying each time so `None`
-    action_input = layers.Input(shape=( n_actions)) ## batch, n_actions(6)
+    action_input = layers.Input(shape=(1)) ## batch, 1  1:(a single int ranging from 0 to 5)
 
     ## Other options are 
     # 1- embeding for each dim and then concat 
