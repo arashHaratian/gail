@@ -27,6 +27,7 @@ def sample_batch(batch, observations, actions, length, start, goal, sort_by_len 
 
 def train(
         policy_model, value_model, discrim_model,
+        env,
         learner_obs, learner_act, learner_len,
         expert_obs, expert_act, expert_len,
         start_state, goal_state,
@@ -69,7 +70,7 @@ def train(
                                                                                    start_state, goal_state)
         
         
-        train_policy_and_value_step(policy_model, value_model,
+        train_policy_and_value_step(policy_model, value_model, env,
                                     learner_obs, learner_act, learner_len,
                                     learner_start_state, learner_goal_state,
                                     expert_start_state, expert_goal_state)
@@ -90,9 +91,9 @@ def train_discrim_step(
         learner_target = discrim_model([learner_start_state, learner_goal_state, learner_obs, learner_act])
         expert_target = discrim_model([expert_start_state, expert_goal_state, expert_obs, expert_act])
 
-        cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True) ## TODO if from_logit should be there or no!! if yes add it to the nework optim too
-        real_loss = cross_entropy(tf.ones_like(expert_target), expert_target)
-        fake_loss = cross_entropy(tf.zeros_like(learner_target), learner_target)
+        # cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+        real_loss = discrim_model.loss(tf.ones_like(expert_target), expert_target)
+        fake_loss = discrim_model.loss(tf.zeros_like(learner_target), learner_target)
         total_loss = real_loss + fake_loss
         
     gradients = tape.gradient(total_loss, discrim_model.trainable_weights)
@@ -111,14 +112,14 @@ def train_discrim_step(
 
 
 def train_policy_and_value_step(
-    policy_model,
-    value_model,
+    policy_model, value_model,
+    env,
     learner_obs, learner_act, learner_len,
     start_state, goal_state,
     c_1 = 1,
     c_2 = 0.01):
 
-    return_values = calculate_return(value_model, learner_obs, learner_act, learner_len) ## TODO maybe inside the tapes?
+    return_values = calculate_return(policy_model, value_model, env, learner_obs, learner_act, learner_len, start_state, goal_state) ## TODO maybe inside the tapes?
 
     with tf.GradientTape() as tape1, tf.GradientTape() as tape2:
         act_prob = policy_model([start_state, goal_state, learner_obs, learner_act])
@@ -143,7 +144,9 @@ def train_policy_and_value_step(
 
 
 def calculate_return(
-    policy_net, value_net, discrim_model, env,
+    policy_net, value_net,
+    # discrim_model,
+    env,
     learner_obs, learner_act, learner_len,
     start_state, goal_state):
 

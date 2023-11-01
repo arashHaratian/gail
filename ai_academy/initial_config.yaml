@@ -7,8 +7,8 @@ start_node:
   z: 2
 
 goal_node:
-  x: 39
-  y: 39
+  x: 7
+  y: 7
   z: 5
 
 higher_limit:
