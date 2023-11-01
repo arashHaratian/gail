@@ -51,10 +51,10 @@ def Policy_net(
         layers.GRUCell(hidden_dim),
         layers.GRUCell(hidden_dim)]))(embed)
 
-    x = layers.Concatenate(axis=1)([x_rnn, goal_input, start_input])
+    x = layers.Concatenate(axis=1)([x_rnn, start_input, goal_input])
 
     ## Vanilla Policy class in the original code 
-    x = layers.Dense(hidden_dim, activation='relu')(x_rnn)
+    x = layers.Dense(hidden_dim, activation='relu')(x)
     x = layers.Dense(hidden_dim, activation='relu')(x)
     x = layers.Dense(hidden_dim, activation='relu')(x)
     x = layers.Dense(n_actions, activation='linear')(x)

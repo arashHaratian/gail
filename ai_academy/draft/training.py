@@ -136,7 +136,7 @@ def unroll_traj(
     for i in range(int(tf.math.ceil(num_trajs / batch_size))):
 
         if num_trajs - processed >= batch_size:
-            batch_obs, batch_act, batch_len, batch_reward = unroll_batch(start_obs[(i*batch_size):((i+1)*batch_size), :], goal_state,
+            batch_obs, batch_act, batch_len, batch_reward = unroll_batch(start_obs[(i*batch_size):((i+1)*batch_size), :], goal_state[(i*batch_size):((i+1)*batch_size), :],
                                                                         env, policy_net, max_len)
             
             batch_max_length = batch_obs.shape[1]
@@ -148,8 +148,7 @@ def unroll_traj(
             learner_reward[(i*batch_size):((i+1)*batch_size), :(batch_max_length-1)] = batch_reward
             processed += batch_obs.shape[0]
         else:
-            print("a")
-            batch_obs, batch_act, batch_len, batch_reward = unroll_batch(start_obs[(i*batch_size):, :], goal_state, 
+            batch_obs, batch_act, batch_len, batch_reward = unroll_batch(start_obs[(i*batch_size):, :], goal_state[(i*batch_size):((i+1)*batch_size), :], 
                                                                         env, policy_net, max_len)  
                                                                                   
             batch_max_length = batch_obs.shape[1]

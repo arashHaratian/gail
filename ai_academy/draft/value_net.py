@@ -53,7 +53,7 @@ def Value_net(
         layers.GRUCell(hidden_dim),
         layers.GRUCell(hidden_dim)]))(embed)
     
-    x = layers.Concatenate(axis=1)([x_rnn, goal_input, start_input, action_input])
+    x = layers.Concatenate(axis=1)([x_rnn, start_input, goal_input, action_input])
 
     ## Vanilla Value net class in the original code 
     x = layers.Dense(hidden_dim, activation='relu')(x)
