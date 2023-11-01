@@ -1,6 +1,28 @@
 # from draft import  discrim_net, policy_net, value_net
 import tensorflow as tf
-import itertools
+import random
+
+def sample_batch(batch, observations, actions, length, start, goal, sort_by_len =True):
+    
+    data_size = observations.shape[0] ## number of trajs
+    idx = random.choices(range(data_size), k = batch)
+    
+    sampled_obs = observations[idx]
+    sampled_act =  actions[idx]
+    sampled_len = length[idx]
+    sampled_start = start[idx]
+    sampled_goal = goal[idx]
+    
+    if sort_by_len:
+        sorted_idx = tf.argsort(sampled_len, direction="DESCENDING")
+        sampled_obs = sampled_obs[sorted_idx]
+        sampled_act = sampled_act[sorted_idx]
+        sampled_len = sampled_len[sorted_idx]
+        sampled_start = sampled_start[sorted_idx]
+        sampled_goal = sampled_goal[sorted_idx]
+
+    return sampled_obs, sampled_act, sampled_len, sampled_start, sampled_goal
+
 
 
 def train(
@@ -8,35 +30,65 @@ def train(
         learner_obs, learner_act, learner_len,
         expert_obs, expert_act, expert_len,
         start_state, goal_state,
-        num_discrim_update = 2, num_gen_update = 6):
+        num_discrim_update = 2, num_gen_update = 6, batch = 2048):
     
 
     for _ in range(num_discrim_update):
+
+        learner_obs, learner_act, learner_len, learner_start_state, learner_goal_state = sample_batch(batch,
+                                                                                    learner_obs,
+                                                                                    learner_act,
+                                                                                    learner_len,
+                                                                                    start_state, goal_state)
+        expert_obs, expert_act, expert_len, expert_start_state, expert_goal_state = sample_batch(batch,
+                                                                                    expert_obs,
+                                                                                    expert_act,
+                                                                                    expert_len,
+                                                                                    start_state, goal_state)
+            
         
         ## In the original code, they sort the input data for both expert and learner!
         train_discrim_step(discrim_model,
                            learner_obs, learner_act, learner_len,
                            expert_obs, expert_act, expert_len,
-                           start_state, goal_state)
+                           learner_start_state, learner_goal_state,
+                           expert_start_state, expert_goal_state)
+
+
 
     for _ in range(num_gen_update):
+        learner_obs, learner_act, learner_len, learner_start_state, learner_goal_state = sample_batch(batch,
+                                                                                    learner_obs,
+                                                                                    learner_act,
+                                                                                    learner_len,
+                                                                                    start_state, goal_state)
+        expert_obs, expert_act, expert_len, expert_start_state, expert_goal_state = sample_batch(batch,
+                                                                                    expert_obs,
+                                                                                    expert_act,
+                                                                                    expert_len,
+                                                                                   start_state, goal_state)
+        
+        
         train_policy_and_value_step(policy_model, value_model,
                                     learner_obs, learner_act, learner_len,
-                                    start_state, goal_state)
+                                    learner_start_state, learner_goal_state,
+                                    expert_start_state, expert_goal_state)
+
 
 
 def train_discrim_step(
     discrim_model,
     learner_obs, learner_act, learner_len,
     expert_obs, expert_act, expert_len,
-    start_state, goal_state):
+    learner_start_state, learner_goal_state,
+    expert_start_state, expert_goal_state):
     
     ## ================= solution 1 ==================================
     
     with tf.GradientTape() as tape:
         
-        learner_target = discrim_model([start_state, goal_state, learner_obs, learner_act])
-        expert_target = discrim_model([start_state, goal_state, expert_obs, expert_act])
+        learner_target = discrim_model([learner_start_state, learner_goal_state, learner_obs, learner_act])
+        expert_target = discrim_model([expert_start_state, expert_goal_state, expert_obs, expert_act])
 
         cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True) ## TODO if from_logit should be there or no!! if yes add it to the nework optim too
         real_loss = cross_entropy(tf.ones_like(expert_target), expert_target)
@@ -49,8 +101,8 @@ def train_discrim_step(
             
 
     ## ================= solution 2 ==================================
-    input_data = tf.concat([[start_state, goal_state, learner_obs, learner_act],
-                  [start_state, goal_state, expert_obs, expert_act]], axis = 0) 
+    input_data = tf.concat([[learner_start_state, learner_goal_state, learner_obs, learner_act],
+                  [expert_start_state, expert_goal_state, expert_obs, expert_act]], axis = 0) 
     target_data = tf.concat([tf.zeros(learner_len,), tf.ones(expert_len,)], axis = 0)
     discrim_model.fit(input_data, target_data)
     
@@ -114,9 +166,12 @@ def calculate_return(
 
     return expected_return
 
+
+
 def get_reward(model, data):
     prob = model(data)
     return - tf.math.log(tf.clip_by_value(prob, 1e-10, 1))
+
 
 
 def unroll_traj(
@@ -166,7 +221,6 @@ def unroll_traj(
     learner_reward = learner_reward[:, :(out_max_length-1)]
 
     return learner_obs, learner_actions, learner_len, learner_reward
-
 
 
 
