@@ -249,7 +249,7 @@ def unroll_batch(
             break
 
         ## select the last in each batch (len_of_seq = to the last)
-        action_dist = policy_net([notdone_obs[:, 0, :], tf.boolean_mask(obs, ~done_mask, axis=0), notdone_obs]) ##TODO check the start and the goal data
+        action_dist = policy_net([notdone_obs[:, 0, :], tf.boolean_mask(goal_state, ~done_mask, axis=0), notdone_obs]) ##TODO check the start and the goal data
 
         action = action_dist.sample()
         if tf.reduce_max(action) > 5:
