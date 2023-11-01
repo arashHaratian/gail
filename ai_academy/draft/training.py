@@ -127,7 +127,7 @@ def unroll_traj(
     
     learner_obs = -1 * tf.ones((num_trajs, max_len + 1, 3)).numpy()
     learner_actions = -1 * tf.ones((num_trajs, max_len)).numpy()
-    learner_len = tf.zeros((num_trajs, )).numpy()
+    learner_len = tf.zeros((num_trajs, ), dtype=tf.dtypes.int32).numpy()
     learner_reward = tf.zeros((num_trajs, max_len)).numpy()
 
     out_max_length = 0
@@ -178,7 +178,7 @@ def unroll_batch(
     
     batch_size = start_obs.shape[0]
     obs = tf.expand_dims(start_obs, 1) ## Making a (batch, 3) tensor to (batch, len_of_seq, 3) where len_of_seq is 1 now
-    obs_len = tf.ones((batch_size)) ## Size of len_of_seq for each batch
+    obs_len = tf.ones((batch_size), dtype=tf.dtypes.int32) ## Size of len_of_seq for each batch
     actions = tf.zeros((batch_size, 1))
     rewards = tf.zeros((batch_size, 1))
 

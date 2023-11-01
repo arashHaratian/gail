@@ -46,9 +46,13 @@ learner_observations, learner_actions, learner_len, learner_rewards =unroll_traj
                                                                                 batch, num_trajs, max_len)
 
 
-learner_obs = tf.zeros((learner_len.sum(), learner_len.max(), n_space)) ## zeros since we mask them in RNN ##TODO problem of cordinate zero!
-learner_act = tf.zeros((learner_len.sum()))
-learner_l = tf.zeros((learner_len.sum()))
+
+S = learner_len.sum()
+M = learner_len.max()
+
+learner_obs = tf.zeros((S, M, n_space)).numpy() ## zeros since we mask them in RNN ##TODO problem of cordinate zero!
+learner_act = tf.zeros((S)).numpy()
+learner_l = tf.zeros((S)).numpy()
 cnt = 0
 
 ## TODO: needs to be check (just copied and added the last dimension, not sure if it works)
