@@ -69,7 +69,7 @@ def Discrim_net(
     # model.compile(optimizer=Adam(learning_rate=0.01), loss=tf.keras.losses.BinaryCrossentropy(from_logits=True))
 
     model = Model([start_input, goal_input, state_seq_input, action_input], prob)
-    model.compile(optimizer=Adam(learning_rate=0.01), loss=tf.keras.losses.BinaryCrossentropy())
+    model.compile(optimizer=Adam(learning_rate=5e-5), loss=tf.keras.losses.BinaryCrossentropy())
 
     return model
 

@@ -71,7 +71,7 @@ def Policy_net(
     action_dist = tfp.layers.DistributionLambda(lambda p: tfp.distributions.Categorical(probs = p))(prob)
     model = Model([start_input, goal_input, state_seq_input], action_dist)
 
-    model.compile(optimizer=Adam(learning_rate=0.01))
+    model.compile(optimizer=Adam(learning_rate=5e-5))
 
     return model
 
