@@ -62,7 +62,7 @@ def Value_net(
     value = layers.Dense(1, activation='linear')(x)
 
     model = Model([start_input, goal_input, state_seq_input, action_input], value)
-    model.compile(optimizer=Adam(learning_rate=0.01), loss='mse')
+    model.compile(optimizer=Adam(learning_rate=0.01), loss=tf.keras.losses.MeanSquaredError())
 
     return model
 
