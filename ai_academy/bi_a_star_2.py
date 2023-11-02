@@ -338,7 +338,7 @@ def draw_control(org_closed, goal_closed, flag, start, end, bound, obstacle):
         if node_intersect:  # a path is find
             path = get_path(org_closed, goal_closed, node_intersect[0])
             stop_loop = 1
-            print('Path found!')
+            # print('Path found!')
     elif flag == 1:  # start point blocked first
         stop_loop = 1
         print('There is no path to the goal! Start point is blocked!')
@@ -504,21 +504,25 @@ def main_bi_astar(
     higher_limit = data['higher_limit']
     lower_limit = data['lower_limit']
 
-    if not use_yaml:
-        start_node = {'x': user_start_node[0], 'y': user_start_node[1], 'z': user_start_node[2]}
-        goal_node = {'x': user_goal_node[0], 'y': user_goal_node[1], 'z': user_goal_node[2]}
-        obstacles, _, _, _ = get_obstacles(defined_yaml=False, options=[env_type, env_number])
-    else:
-        obstacles, _, _, _ = get_obstacles(defined_yaml=defined_yaml, options=options)
+    start_node = {'x': user_start_node[0], 'y': user_start_node[1], 'z': user_start_node[2]}
+    goal_node = {'x': user_goal_node[0], 'y': user_goal_node[1], 'z': user_goal_node[2]}
+    obstacles, _, _, _ = get_obstacles(defined_yaml=False, options=options)
+
+    # if not use_yaml:
+    #     start_node = {'x': user_start_node[0], 'y': user_start_node[1], 'z': user_start_node[2]}
+    #     goal_node = {'x': user_goal_node[0], 'y': user_goal_node[1], 'z': user_goal_node[2]}
+    #     obstacles, tx, ty, tz = get_obstacles(defined_yaml=False, options=[env_type, env_number])
+    # else:
+    #     obstacles, _, _, _ = get_obstacles(defined_yaml=defined_yaml, options=options)
 
     top_vertex = [higher_limit['x'], higher_limit['y'], higher_limit['z']]  # top right vertex of boundary
     bottom_vertex = [lower_limit['x'], lower_limit['y'], lower_limit['z']]  # bottom left vertex of boundary
 
     if dimension_3:
         start = [start_node['x'], start_node['y'], start_node['z']]
-        end = [goal_node['x'], goal_node['y'], start_node['z']]
+        end = [goal_node['x'], goal_node['y'], goal_node['z']]
 
-        new_obstacles = [(_x, _y, _z) for _x, _y, _z in obstacles if _z == start[2]]
+        new_obstacles = [(_x, _y, _z) for _x, _y, _z in obstacles]
 
 
         obstacle = [coor for coor in new_obstacles if coor != start and coor != end]
@@ -598,7 +602,11 @@ def main_bi_astar(
 
 
 if __name__ == '__main__':
-    path_one_step, steps, obstacles = main_bi_astar(defined_yaml=False, options=['rain_forest', 17])
+    # path_one_step, steps, obstacles = main_bi_astar(defined_yaml=False, options=['rain_forest', 17])
+
+
+    traj, action, _ = main_bi_astar(use_yaml = False, options=['disaster_3d', 17], dimension_3=True,
+                                    user_start_node = [2, 2, 3], user_goal_node = [7, 7, 5], defined_yaml=False)
 
     # print(path_one_step)
     # print('-----------')
