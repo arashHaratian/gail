@@ -53,7 +53,7 @@ M_learner = learner_len.max()
 
 learner_obs = tf.zeros((S_learner, M_learner, n_space)).numpy() ## zeros since we mask them in RNN
 learner_act = tf.zeros((S_learner, 1)).numpy() ## adding 1 to the dim so that it can be concat later
-learner_l = tf.zeros((S_learner)).numpy()
+learner_l = tf.zeros((S_learner), dtype=tf.dtypes.int32).numpy()
 cnt = 0
 
 ## TODO: needs to be check (just copied and added the last dimension, not sure if it works)
@@ -109,7 +109,7 @@ M_expert = expert_len.max()
 
 expert_obs = tf.zeros((S_expert, M_expert, n_space)).numpy() ## zeros since we mask them in RNN 
 expert_act = tf.zeros((S_expert, 1)).numpy() ## adding 1 to the dim so that it can be concat later(in discrim)
-expert_l = tf.zeros((S_expert)).numpy()
+expert_l = tf.zeros((S_expert), dtype=tf.dtypes.int32).numpy()
 cnt = 0
 
 ## TODO: needs to be check (just copied and added the last dimension, not sure if it works)
@@ -133,3 +133,5 @@ train(policy, value, discrim,
     state_inputs_unrolled, goal_inputs_unrolled,
     num_discrim_update = 2, num_gen_update = 6, batch = batch)
 
+
+o, a, l, s, g = sample_batch(batch,learner_obs,learner_act,learner_l,state_inputs_unrolled, goal_inputs_unrolled)
