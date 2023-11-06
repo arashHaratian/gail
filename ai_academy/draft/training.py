@@ -70,7 +70,7 @@ def train(
                                                                                     start_state, goal_state)
         
         
-        train_policy_and_value_step(policy_model, value_model, env,
+        train_policy_and_value_step(policy_model, value_model, discrim_model, env,
                                     learner_obs, learner_act, learner_len,
                                     learner_start_state, learner_goal_state)
 
@@ -91,8 +91,8 @@ def train_discrim_step(
         expert_target = discrim_model([expert_start_state, expert_goal_state, expert_obs, expert_act])
 
         # cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
-        real_loss = discrim_model.loss(tf.ones_like(expert_target), expert_target)
-        fake_loss = discrim_model.loss(tf.zeros_like(learner_target), learner_target)
+        real_loss = discrim_model.loss(tf.zeros_like(expert_target), expert_target)
+        fake_loss = discrim_model.loss(tf.ones_like(learner_target), learner_target)
         total_loss = real_loss + fake_loss
         
     gradients = tape.gradient(total_loss, discrim_model.trainable_weights)
@@ -111,14 +111,14 @@ def train_discrim_step(
 
 
 def train_policy_and_value_step(
-    policy_model, value_model,
+    policy_model, value_model,discrim_model,
     env,
     learner_obs, learner_act, learner_len,
     start_state, goal_state,
     c_1 = 1,
     c_2 = 0.01):
 
-    return_values = calculate_return(policy_model, value_model, env, learner_obs, learner_act, learner_len, start_state, goal_state) ## TODO maybe inside the tapes?
+    return_values = calculate_return(policy_model, value_model, discrim_model, env, learner_obs, learner_act, learner_len, start_state, goal_state)
 
     with tf.GradientTape() as tape1, tf.GradientTape() as tape2:
         act_prob = policy_model([start_state, goal_state, learner_obs])
@@ -144,17 +144,18 @@ def train_policy_and_value_step(
 
 def calculate_return(
     policy_net, value_net,
-    # discrim_model,
+    discrim_model,
     env,
     learner_obs, learner_act, learner_len,
-    start_state, goal_state):
+    start_state, goal_state, gamma = 0.95):
 
     batch_size = learner_obs.shape[0]
-    # rewards = get_reward(discrim_model, data)
+    discrim_rewards = get_reward(discrim_model, [start_state, goal_state, learner_obs, learner_act])
     current_state = learner_obs[range(batch_size), learner_len-1, :]
     new_states, rewards, _ = env.step_vectorized(current_state, tf.convert_to_tensor(learner_act.squeeze(1))) ## Change actions from (batch, 1) to (batch, )
+    print(tf.reduce_mean(rewards),"  ", tf.reduce_mean(discrim_rewards), "  ",  tf.reduce_mean(rewards + discrim_rewards))
 
-    ## TODO Get the ext state
+    
     new_learner_obs = tf.zeros((batch_size, learner_obs.shape[1] + 1, 3)).numpy()
     new_learner_obs[:, :learner_obs.shape[1], :] = learner_obs
     new_learner_obs[:, learner_len, :] = new_states
@@ -164,8 +165,9 @@ def calculate_return(
     all_actions = list(range(6)) # 6 is n_actions
     next_values = [value_net([start_state, goal_state, new_learner_obs, tf.repeat(tf.expand_dims([action], 0), batch_size, 0)]) for action in all_actions]
     next_values = tf.concat(next_values, axis = 1)
-
-    expected_return = tf.reduce_sum(next_values * action_prob.probs, axis = 1) + rewards
+    # expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + rewards
+    # expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + (rewards + discrim_rewards)
+    expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + discrim_rewards
 
     return expected_return
 
@@ -252,7 +254,7 @@ def unroll_batch(
             break
 
         ## select the last in each batch (len_of_seq = to the last)
-        action_dist = policy_net([notdone_obs[:, 0, :], tf.boolean_mask(goal_state, ~done_mask, axis=0), notdone_obs]) ##TODO check the start and the goal data
+        action_dist = policy_net([notdone_obs[:, 0, :], tf.boolean_mask(goal_state, ~done_mask, axis=0), notdone_obs])
 
         action = action_dist.sample()
         if tf.reduce_max(action) > 5:
@@ -260,11 +262,10 @@ def unroll_batch(
         if tf.reduce_min(action) < 0:
             raise Exception
         
-        new_state, reward, done = env.step_vectorized(notdone_obs[:, -1, :], action) ##TODO
-
+        new_state, reward, done = env.step_vectorized(notdone_obs[:, -1, :], action)
         new_column = tf.zeros((batch_size, 1, 3)).numpy() # since zeros are masked
         new_column[~done_mask, 0, :] = new_state
-        obs = tf.concat([obs, new_column], 1) ## Concat should be in second dim (len_of_seq) ##TODO check the dim in case!
+        obs = tf.concat([obs, new_column], 1) ## Concat should be in second dim (len_of_seq)
         
         
         new_column = tf.zeros((batch_size, 1)).numpy()

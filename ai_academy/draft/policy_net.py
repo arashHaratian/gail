@@ -14,7 +14,8 @@ def Policy_net(
         height: int = 21, 
         width: int = 21, 
         depth: int = 11,
-        hidden_dim = 64
+        hidden_dim = 64,
+        lr = 5e-5
     ):
     """Creates a keras network for policy net
     
@@ -35,15 +36,20 @@ def Policy_net(
     goal_input = layers.Input(shape=(n_space)) ## batch, n_space(3)
     state_seq_input = layers.Input(shape=(None, n_space)) ## batch, seq_len, n_space(3) 3:(x,y,z),  `seq_len` is varying each time so `None`
 
-    ## Other options are 
+    ## TODO: Other options are 
     # 1- embeding for each dim and then concat 
     # 2- same as now but have big hidden_dim   (current implmentation, put a big hidden dim)
     # 3- somehow make x,y,z into one value (for instance sum) and then embed for that
-    embed = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input)
+    embed_x = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input[:, :, 0])
+    embed_y = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input[:, :, 1])
+    embed_z = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input[:, :, 2])
     
     ## Embed is (None, seq_len, n_space, hidden_dim) ---reshape---> (None, seq_len, n_space * hidden_dim)
-    embed = layers.Reshape((-1, n_space * hidden_dim))(embed)
+    # embed = layers.Reshape((-1, n_space * hidden_dim))(embed)
+    embed = layers.Concatenate(axis=2)([embed_x, embed_y, embed_z])
 
+    ## TODO: embed start and the end
+    
      # padded_embed = pad_sequences(embed, padding='post')
     x_rnn = layers.RNN(
         layers.StackedRNNCells(
@@ -71,7 +77,7 @@ def Policy_net(
     action_dist = tfp.layers.DistributionLambda(lambda p: tfp.distributions.Categorical(probs = p))(prob)
     model = Model([start_input, goal_input, state_seq_input], action_dist)
 
-    model.compile(optimizer=Adam(learning_rate=5e-5))
+    model.compile(optimizer=Adam(learning_rate= lr))
 
     return model
 

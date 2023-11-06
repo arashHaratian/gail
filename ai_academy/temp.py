@@ -12,16 +12,16 @@ import random
 batch = 256
 n_space = 3
 n_actions = 6
-max_len = 100
-num_trajs = batch+10
+max_len = 50
+num_trajs = 4*batch+10
 
 env_option = ['disaster_3d', 17]
 
 env_dim = tf.constant([40, 40, 6])
 
-num_train_iter = 1000
+num_train_iter = 100
 
-n_features = 40 + 1
+n_features = 8
 
 ## ========================== Setting up the env ==========================
 obstacles, obstacles_x, obstacles_y, obstacles_z = get_obstacles(defined_yaml = False, options = env_option)
@@ -43,6 +43,8 @@ discrim = Discrim_net(n_actions, n_features)
 policy = Policy_net(n_actions, n_features)
 value = Value_net(n_actions, n_features)
 
+## TODO: Forcing the weights of embeddings in discrim and value to be the same as policy 
+
 
 for i in range(num_train_iter):
 ## ========================== Collecting the learner trajs ==========================
@@ -51,6 +53,24 @@ for i in range(num_train_iter):
                                                                                     batch, num_trajs, max_len)
 
 
+    ## TODO: 1- with no last state
+    # learner_len[learner_len == (max_len+1)] -= 1
+
+    ## TODO:2- with no action for the last state
+    # learner_len[learner_len != (max_len+1)] += 1
+    
+    ## TODO: 3- 3 embeddings for each axis
+    ## TODO: 4- D for reward 
+    ## TODO: 5- D for reward + env reward
+    ## TODO: 6- Embed start and the end points
+
+    print(f"{i} : {tf.reduce_mean(learner_rewards)} ; {(learner_len != 51).mean()}")
+
+    # if i in [0, 20, 30, 40, 50, 90]:
+    #     print(learner_observations)
+    #     print(learner_actions)
+    #     print(learner_len)
+    #     print(learner_rewards)
 
     S_learner = learner_len.sum()
     M_learner = learner_len.max()
@@ -59,6 +79,7 @@ for i in range(num_train_iter):
     learner_act = tf.zeros((S_learner, 1)).numpy() ## adding 1 to the dim so that it can be concat later
     learner_l = tf.zeros((S_learner), dtype=tf.dtypes.int32).numpy()
     cnt = 0
+    # old_cnt = 0
 
     ## TODO: needs to be check (just copied and added the last dimension, not sure if it works)
     for sample in range(num_trajs):
@@ -69,8 +90,10 @@ for i in range(num_train_iter):
                 learner_l[cnt] = seq_length
                 cnt += 1
             except:
-                # print("break with index error in Learner Trajectory")
+                # print(f"break with index error in Learner Trajectory {sample}")
                 break
+        # learner_act[old_cnt:c~nt-1 , 0] = learner_actions[sample, :seq_length - 1]
+        # old_cnt = cnt-1
 
 
     idx = learner_l != 0
@@ -80,19 +103,20 @@ for i in range(num_train_iter):
 
     if (learner_l == 0).any():
         raise Exception
+    
+    ## TODO: check if the starts are correct 
+    # state_inputs_unrolled = tf.zeros((S_learner, n_space), dtype = tf.dtypes.int32).numpy()
+    # # goal_inputs_unrolled = tf.zeros((S_learner, n_space), dtype = tf.dtypes.int32).numpy()
+    # for idx, seq_length in enumerate(learner_len):
+    #     state_inputs_unrolled[idx*seq_length:(idx+1)*seq_length, :] = state_inputs_train[idx, :]
 
+    #     ## Since the goals are the same use  the code after for loop
+    #     # goal_inputs_unrolled[idx*seq_length:(idx+1)*seq_length, :] = goal_inputs_train[idx, :]
 
-    state_inputs_unrolled = tf.zeros((S_learner, n_space), dtype = tf.dtypes.int32).numpy()
-    # goal_inputs_unrolled = tf.zeros((S_learner, n_space), dtype = tf.dtypes.int32).numpy()
-    for idx, seq_length in enumerate(learner_len):
-        state_inputs_unrolled[idx*seq_length:(idx+1)*seq_length, :] = state_inputs_train[idx, :]
-
-        ## Since the goals are the same use  the code after for loop
-        # goal_inputs_unrolled[idx*seq_length:(idx+1)*seq_length, :] = goal_inputs_train[idx, :]
-
-    ## If goals are different, coment this line and use the last line in the above for loop
+    # ## If goals are different, coment this line and use the last line in the above for loop
     goal_inputs_unrolled = tf.repeat(end_state, S_learner, 0).numpy()
 
+    state_inputs_unrolled = learner_obs[:, 0, :]
 
     ## ========================== Collecting the expert (b-star) trajs ==========================
     expert_observations = tf.zeros((num_trajs, max_len + 1, 3)).numpy()
@@ -122,10 +146,11 @@ for i in range(num_train_iter):
             try:
                 expert_obs[cnt, :seq_length, :] = expert_observations[sample, :seq_length, :]
                 expert_act[cnt, 0] = int(expert_actions[sample][seq_length-1])
-                expert_l[cnt] = seq_length
+                # expert_l[cnt] = seq_length
+                expert_l[cnt] = seq_length - 1
                 cnt += 1
             except:
-                # print("break with index error in expert Trajectory")
+                print("break with index error in expert Trajectory")
                 break
 
 
@@ -139,3 +164,11 @@ for i in range(num_train_iter):
 
 
 # o, a, l, s, g = sample_batch(batch,learner_obs,learner_act,learner_l,state_inputs_unrolled, goal_inputs_unrolled)
+
+learner_observations, learner_actions, learner_len, learner_rewards =unroll_traj(state_inputs_train, goal_inputs_train,
+                                                                                    env, policy,
+                                                                                    batch, num_trajs, max_len)
+print(learner_observations[tf.where[learner_len != 51]])
+print(learner_actions[tf.where[learner_len != 51]])
+print(learner_len[tf.where[learner_len != 51]])
+print(learner_rewards[tf.where[learner_len != 51]])

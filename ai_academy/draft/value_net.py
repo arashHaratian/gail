@@ -16,7 +16,8 @@ def Value_net(
         height: int = 21, 
         width: int = 21, 
         depth: int = 11,
-        hidden_dim = 64
+        hidden_dim = 64,
+        lr = 5e-5
     ):
     """Creates a keras network for value net
     
@@ -37,15 +38,22 @@ def Value_net(
     state_seq_input = layers.Input(shape=(None, n_space)) ## batch, seq_len, n_space(3) 3:(x,y,z) ,  `seq_len` is varying each time so `None`
     action_input = layers.Input(shape=(1)) ## batch, 1  1:(a single int ranging from 0 to 5)
 
-    ## Other options are 
+    ## TODO: Other options are 
     # 1- embeding for each dim and then concat 
     # 2- same as now but have big hidden_dim   (current implmentation, put a big hidden dim)
     # 3- somehow make x,y,z into one value (for instance sum) and then embed for that
-    embed = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input)
-
+    # embed = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input)
+    embed_x = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input[:, :, 0])
+    embed_y = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input[:, :, 1])
+    embed_z = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input[:, :, 2])
+    
     ## Embed is (None, seq_len, n_space, hidden_dim) ---reshape---> (None, seq_len, n_space * hidden_dim)
-    embed = layers.Reshape((-1, n_space * hidden_dim))(embed)
-
+    # embed = layers.Reshape((-1, n_space * hidden_dim))(embed)
+    embed = layers.Concatenate(axis=2)([embed_x, embed_y, embed_z])
+    
+    ## TODO: onehot the action with layers.CategoryEncoding
+    ## TODO: embed start and the end
+    
     # padded_embed = pad_sequences(embed, padding='post')
     x_rnn = layers.RNN(
         layers.StackedRNNCells(
@@ -62,7 +70,7 @@ def Value_net(
     value = layers.Dense(1, activation='linear')(x)
 
     model = Model([start_input, goal_input, state_seq_input, action_input], value)
-    model.compile(optimizer=Adam(learning_rate=5e-5), loss=tf.keras.losses.MeanSquaredError())
+    model.compile(optimizer=Adam(learning_rate = lr), loss=tf.keras.losses.MeanSquaredError())
 
     return model
 
