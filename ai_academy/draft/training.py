@@ -150,10 +150,11 @@ def calculate_return(
     start_state, goal_state, gamma = 0.95):
 
     batch_size = learner_obs.shape[0]
-    discrim_rewards = get_reward(discrim_model, [start_state, goal_state, learner_obs, learner_act])
+    # discrim_rewards = get_reward(discrim_model, [start_state, goal_state, learner_obs, learner_act])
     current_state = learner_obs[range(batch_size), learner_len-1, :]
     new_states, rewards, _ = env.step_vectorized(current_state, tf.convert_to_tensor(learner_act.squeeze(1))) ## Change actions from (batch, 1) to (batch, )
-    print(tf.reduce_mean(rewards),"  ", tf.reduce_mean(discrim_rewards), "  ",  tf.reduce_mean(rewards + discrim_rewards))
+    # print(tf.reduce_mean(rewards),"  ", tf.reduce_mean(discrim_rewards), "  ",  tf.reduce_mean(rewards + discrim_rewards))
+    print(tf.reduce_mean(rewards))
 
     
     new_learner_obs = tf.zeros((batch_size, learner_obs.shape[1] + 1, 3)).numpy()
@@ -165,9 +166,9 @@ def calculate_return(
     all_actions = list(range(6)) # 6 is n_actions
     next_values = [value_net([start_state, goal_state, new_learner_obs, tf.repeat(tf.expand_dims([action], 0), batch_size, 0)]) for action in all_actions]
     next_values = tf.concat(next_values, axis = 1)
-    # expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + rewards
+    expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + rewards
     # expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + (rewards + discrim_rewards)
-    expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + discrim_rewards
+    # expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + discrim_rewards
 
     return expected_return
 

@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 from draft.discrim_net import Discrim_net
 from draft.policy_net import Policy_net
 from draft.value_net import Value_net
@@ -8,6 +9,12 @@ from environment import get_obstacles
 from bi_a_star_2 import main_bi_astar
 import itertools
 import random
+
+
+random.seed(1)
+tf.random.set_seed(1)
+np.random.seed(1)
+tf.config.set_visible_devices([], 'GPU')
 
 batch = 256
 n_space = 3
@@ -54,7 +61,7 @@ for i in range(num_train_iter):
 
 
     ## TODO: 1- with no last state
-    # learner_len[learner_len == (max_len+1)] -= 1
+    learner_len[learner_len == (max_len+1)] -= 1
 
     ## TODO:2- with no action for the last state
     # learner_len[learner_len != (max_len+1)] += 1
@@ -64,7 +71,7 @@ for i in range(num_train_iter):
     ## TODO: 5- D for reward + env reward
     ## TODO: 6- Embed start and the end points
 
-    print(f"{i} : {tf.reduce_mean(learner_rewards)} ; {(learner_len != 51).mean()}")
+    print(f"{i} : {tf.reduce_mean(learner_rewards)} ; {(learner_len != (max_len)).mean()}")
 
     # if i in [0, 20, 30, 40, 50, 90]:
     #     print(learner_observations)
@@ -96,10 +103,10 @@ for i in range(num_train_iter):
         # old_cnt = cnt-1
 
 
-    idx = learner_l != 0
-    learner_obs = learner_obs[idx]
-    learner_act = learner_act[idx]
-    learner_l = learner_l[idx]
+    # idx = learner_l != 0
+    # learner_obs = learner_obs[idx]
+    # learner_act = learner_act[idx]
+    # learner_l = learner_l[idx]
 
     if (learner_l == 0).any():
         raise Exception
@@ -129,7 +136,8 @@ for i in range(num_train_iter):
         traj_len = len(traj)
         expert_observations[idx, :traj_len, :] = traj
         expert_actions[idx, :traj_len - 1] = action
-        expert_len[idx] = traj_len
+        expert_len[idx] = traj_len -1 
+        # expert_len[idx] = traj_len
 
 
     S_expert = expert_len.sum()
@@ -146,8 +154,7 @@ for i in range(num_train_iter):
             try:
                 expert_obs[cnt, :seq_length, :] = expert_observations[sample, :seq_length, :]
                 expert_act[cnt, 0] = int(expert_actions[sample][seq_length-1])
-                # expert_l[cnt] = seq_length
-                expert_l[cnt] = seq_length - 1
+                expert_l[cnt] = seq_length
                 cnt += 1
             except:
                 print("break with index error in expert Trajectory")
