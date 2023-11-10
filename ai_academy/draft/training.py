@@ -97,8 +97,9 @@ def train_discrim_step(
         
     gradients = tape.gradient(total_loss, discrim_model.trainable_weights)
     discrim_model.optimizer.apply_gradients(zip(gradients, discrim_model.trainable_weights))
+    
+    print(f"discrim loss : {total_loss}")
 
-            
 
     ## ================= solution 2 ==================================
     # input_data = tf.concat([[learner_start_state, learner_goal_state, learner_obs, learner_act],
@@ -136,6 +137,8 @@ def train_policy_and_value_step(
     
     gradients = tape2.gradient(loss, value_model.trainable_weights)
     value_model.optimizer.apply_gradients(zip(gradients, value_model.trainable_weights))
+
+    print(f"policy loss : {loss}")
         
 
     return
@@ -150,11 +153,11 @@ def calculate_return(
     start_state, goal_state, gamma = 0.95):
 
     batch_size = learner_obs.shape[0]
-    # discrim_rewards = get_reward(discrim_model, [start_state, goal_state, learner_obs, learner_act])
+    discrim_rewards = get_reward(discrim_model, [start_state, goal_state, learner_obs, learner_act])
     current_state = learner_obs[range(batch_size), learner_len-1, :]
     new_states, rewards, _ = env.step_vectorized(current_state, tf.convert_to_tensor(learner_act.squeeze(1))) ## Change actions from (batch, 1) to (batch, )
     # print(tf.reduce_mean(rewards),"  ", tf.reduce_mean(discrim_rewards), "  ",  tf.reduce_mean(rewards + discrim_rewards))
-    print(tf.reduce_mean(rewards))
+    # print(tf.reduce_mean(rewards))
 
     
     new_learner_obs = tf.zeros((batch_size, learner_obs.shape[1] + 1, 3)).numpy()

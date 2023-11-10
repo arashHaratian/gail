@@ -20,13 +20,13 @@ batch = 256
 n_space = 3
 n_actions = 6
 max_len = 50
-num_trajs = 4*batch+10
+num_trajs = 10*batch+10
 
 env_option = ['disaster_3d', 17]
 
 env_dim = tf.constant([40, 40, 6])
 
-num_train_iter = 100
+num_train_iter = 1000
 
 n_features = 8
 
@@ -47,31 +47,36 @@ goal_inputs_train = tf.repeat(end_state, num_trajs, 0)
 
 ## ========================== Creating the networks ==========================
 discrim = Discrim_net(n_actions, n_features) 
-policy = Policy_net(n_actions, n_features)
-value = Value_net(n_actions, n_features)
+policy = Policy_net(n_actions, n_features, lr = 5e-4)
+value = Value_net(n_actions, n_features, lr = 5e-4)
+
+tf.keras.utils.plot_model(discrim, show_shapes=True,  show_trainable=True)
+tf.keras.utils.plot_model(policy, show_shapes=True,  show_trainable=True)
+tf.keras.utils.plot_model(value, show_shapes=True,  show_trainable=True)
+
 
 ## TODO: Forcing the weights of embeddings in discrim and value to be the same as policy 
 
 
 for i in range(num_train_iter):
-## ========================== Collecting the learner trajs ==========================
+    ## ========================== Collecting the learner trajs ==========================
     learner_observations, learner_actions, learner_len, learner_rewards =unroll_traj(state_inputs_train, goal_inputs_train,
                                                                                     env, policy,
                                                                                     batch, num_trajs, max_len)
 
 
     ## TODO: 1- with no last state
-    learner_len[learner_len == (max_len+1)] -= 1
+    # learner_len[learner_len == (max_len+1)] -= 1
 
     ## TODO:2- with no action for the last state
-    # learner_len[learner_len != (max_len+1)] += 1
-    
+    learner_len[learner_len != (max_len+1)] += 1
+
     ## TODO: 3- 3 embeddings for each axis
     ## TODO: 4- D for reward 
     ## TODO: 5- D for reward + env reward
     ## TODO: 6- Embed start and the end points
 
-    print(f"{i} : {tf.reduce_mean(learner_rewards)} ; {(learner_len != (max_len)).mean()}")
+    print(f"{i} : {tf.reduce_mean(learner_rewards)} ; {(learner_len != (max_len + 1)).mean()}")
 
     # if i in [0, 20, 30, 40, 50, 90]:
     #     print(learner_observations)
@@ -103,14 +108,14 @@ for i in range(num_train_iter):
         # old_cnt = cnt-1
 
 
-    # idx = learner_l != 0
-    # learner_obs = learner_obs[idx]
-    # learner_act = learner_act[idx]
-    # learner_l = learner_l[idx]
+    idx = learner_l != 0
+    learner_obs = learner_obs[idx]
+    learner_act = learner_act[idx]
+    learner_l = learner_l[idx]
 
     if (learner_l == 0).any():
         raise Exception
-    
+
     ## TODO: check if the starts are correct 
     # state_inputs_unrolled = tf.zeros((S_learner, n_space), dtype = tf.dtypes.int32).numpy()
     # # goal_inputs_unrolled = tf.zeros((S_learner, n_space), dtype = tf.dtypes.int32).numpy()
@@ -136,8 +141,8 @@ for i in range(num_train_iter):
         traj_len = len(traj)
         expert_observations[idx, :traj_len, :] = traj
         expert_actions[idx, :traj_len - 1] = action
-        expert_len[idx] = traj_len -1 
-        # expert_len[idx] = traj_len
+        # expert_len[idx] = traj_len -1 
+        expert_len[idx] = traj_len
 
 
     S_expert = expert_len.sum()
@@ -160,6 +165,8 @@ for i in range(num_train_iter):
                 print("break with index error in expert Trajectory")
                 break
 
+    if (expert_l == 0).any():
+        raise Exception
 
     ## ========================== Train using the collected trajs ==========================
     train(policy, value, discrim,
@@ -167,15 +174,19 @@ for i in range(num_train_iter):
         learner_obs, learner_act, learner_l,
         expert_obs, expert_act, expert_l,
         state_inputs_unrolled, goal_inputs_unrolled,
-        num_discrim_update = 2, num_gen_update = 6, batch = batch)
+        num_discrim_update = 3, num_gen_update = 6, batch = batch)
 
 
 # o, a, l, s, g = sample_batch(batch,learner_obs,learner_act,learner_l,state_inputs_unrolled, goal_inputs_unrolled)
+policy.save("./draft/policy_trim_3_embed.h5")
+discrim.save("./draft/discrim_trim_3_embed.h5")
+value.save("./drgaft/value_trim_3_embed.h5")
 
 learner_observations, learner_actions, learner_len, learner_rewards =unroll_traj(state_inputs_train, goal_inputs_train,
                                                                                     env, policy,
-                                                                                    batch, num_trajs, max_len)
-print(learner_observations[tf.where[learner_len != 51]])
-print(learner_actions[tf.where[learner_len != 51]])
-print(learner_len[tf.where[learner_len != 51]])
-print(learner_rewards[tf.where[learner_len != 51]])
+                                                                                    1, 1, max_len)
+
+print(learner_observations)
+print(learner_actions)
+print(learner_len)
+print(learner_rewards)

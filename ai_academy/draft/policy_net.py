@@ -37,62 +37,29 @@ def Policy_net(
     state_seq_input = layers.Input(shape=(None, n_space)) ## batch, seq_len, n_space(3) 3:(x,y,z),  `seq_len` is varying each time so `None`
 
     ## TODO: Other options are 
-    ## 1- embeding for each dim and then concat 
-    ## 2- same as now but have big hidden_dim   (current implmentation, put a big hidden dim)
-    ## 3- somehow make x,y,z into one value (for instance sum) and then embed for that
+    # 1- embeding for each dim and then concat 
+    # 2- same as now but have big hidden_dim   (current implmentation, put a big hidden dim)
+    # 3- somehow make x,y,z into one value (for instance sum) and then embed for that
+    # embed = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input)
 
-
-
-    ## 1- embeding for each dim and then concat 
-    # x_embedding_layer = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)
-    # y_embedding_layer = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)
-    # z_embedding_layer = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)
-
-    # embed_x = x_embedding_layer(state_seq_input[:, :, 0])
-    # embed_y = y_embedding_layer(state_seq_input[:, :, 1])
-    # embed_z = z_embedding_layer(state_seq_input[:, :, 2])
-
-    # start_embed_x = x_embedding_layer(start_input[:, 0:1])
-    # start_embed_y = y_embedding_layer(start_input[:, 1:2])
-    # start_embed_z = z_embedding_layer(start_input[:, 2.3])
-
-    # end_embed_x = x_embedding_layer(goal_input[:, 0:1])
-    # end_embed_y = y_embedding_layer(goal_input[:, 1:2])
-    # end_embed_z = z_embedding_layer(goal_input[:, 2:3])
-
-    # embed = layers.Concatenate(axis=2)([embed_x, embed_y, embed_z])
-    # start_embed = layers.Concatenate(axis=2)([start_embed_x, start_embed_y, start_embed_z])
-    # end_embed = layers.Concatenate(axis=2)([end_embed_x, end_embed_y, end_embed_z])
-
-
-    ## 2- same as now but have big hidden_dim   (current implmentation, put a big hidden dim)
-    embedding_layer = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)
-    embed = embedding_layer(state_seq_input)
-    start_embed = embedding_layer(start_input)
-    end_embed = embedding_layer(goal_input)
-    ## Embed is (None, seq_len, n_space, hidden_dim) ---reshape---> (None, seq_len, n_space * hidden_dim)
-    ## Embeds of start and end are (None, n_space, hidden_dim) ---reshape---> (None, n_space * hidden_dim)
-    embed = layers.Reshape((-1, n_space * hidden_dim))(embed)
-    # start_embed = layers.Reshape((n_space * hidden_dim, ))(start_embed)
-    # end_embed = layers.Reshape((n_space * hidden_dim, ))(end_embed)
-    start_embed = layers.Reshape((1, n_space * hidden_dim))(start_embed)
-    end_embed = layers.Reshape((1, n_space * hidden_dim))(end_embed)
-
+    embed_x = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input[:, :, 0])
+    embed_y = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input[:, :, 1])
+    embed_z = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input[:, :, 2])
     
+    ## Embed is (None, seq_len, n_space, hidden_dim) ---reshape---> (None, seq_len, n_space * hidden_dim)
+    # embed = layers.Reshape((-1, n_space * hidden_dim))(embed)
+    embed = layers.Concatenate(axis=2)([embed_x, embed_y, embed_z])
+
     ## TODO: embed start and the end
     
      # padded_embed = pad_sequences(embed, padding='post')
-    rnn_layer = layers.RNN(
+    x_rnn = layers.RNN(
         layers.StackedRNNCells(
         [layers.GRUCell(hidden_dim),
         layers.GRUCell(hidden_dim),
-        layers.GRUCell(hidden_dim)]))
-    
-    x_rnn_embed = rnn_layer(embed)
-    x_rnn_start_embed = rnn_layer(start_embed)
-    x_rnn_end_embed = rnn_layer(end_embed)
+        layers.GRUCell(hidden_dim)]))(embed)
 
-    x = layers.Concatenate(axis=1)([x_rnn_embed, x_rnn_start_embed, x_rnn_end_embed])
+    x = layers.Concatenate(axis=1)([x_rnn, start_input, goal_input])
 
     ## Vanilla Policy class in the original code 
     x = layers.Dense(hidden_dim, activation='relu')(x)
