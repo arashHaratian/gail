@@ -1,27 +1,32 @@
 # from draft import  discrim_net, policy_net, value_net
 import tensorflow as tf
+import math
 import random
 
 def sample_batch(batch, observations, actions, length, start, goal, sort_by_len =True):
     
     data_size = observations.shape[0] ## number of trajs
-    idx = random.choices(range(data_size), k = batch)
+    idx = list(range(data_size))
+    random.shuffle(idx)
     
-    sampled_obs = observations[idx]
-    sampled_act =  actions[idx]
-    sampled_len = length[idx]
-    sampled_start = start[idx]
-    sampled_goal = goal[idx]
-    
-    if sort_by_len:
-        sorted_idx = tf.argsort(sampled_len, direction="DESCENDING")
-        sampled_obs = sampled_obs[sorted_idx]
-        sampled_act = sampled_act[sorted_idx]
-        sampled_len = sampled_len[sorted_idx]
-        sampled_start = sampled_start[sorted_idx]
-        sampled_goal = sampled_goal[sorted_idx]
+    for i in range(math.ceil(data_size/batch)): 
+        batch_idx = idx[(i*batch):((i+1)*batch)]
+        sampled_obs = observations[batch_idx]
+        sampled_act =  actions[batch_idx]
+        sampled_len = length[batch_idx]
+        sampled_start = start[batch_idx]
+        sampled_goal = goal[batch_idx]
+        
+        ## In the original code, they sort the input data for both expert and learner!
+        if sort_by_len:
+            sorted_idx = tf.argsort(sampled_len, direction="DESCENDING")
+            sampled_obs = sampled_obs[sorted_idx]
+            sampled_act = sampled_act[sorted_idx]
+            sampled_len = sampled_len[sorted_idx]
+            sampled_start = sampled_start[sorted_idx]
+            sampled_goal = sampled_goal[sorted_idx]
 
-    return sampled_obs, sampled_act, sampled_len, sampled_start, sampled_goal
+        yield sampled_obs, sampled_act, sampled_len, sampled_start, sampled_goal
 
 
 
@@ -35,44 +40,26 @@ def train(
     
 
     for _ in range(num_discrim_update):
-
-        learner_obs, learner_act, learner_len, learner_start_state, learner_goal_state = sample_batch(batch,
-                                                                                    learner_obs,
-                                                                                    learner_act,
-                                                                                    learner_len,
-                                                                                    start_state, goal_state)
-        expert_obs, expert_act, expert_len, expert_start_state, expert_goal_state = sample_batch(batch,
-                                                                                    expert_obs,
-                                                                                    expert_act,
-                                                                                    expert_len,
-                                                                                    start_state, goal_state)
-            
+        learner_loader = sample_batch(batch, learner_obs, learner_act, learner_len, start_state, goal_state)
+        expert_loader = sample_batch(batch, expert_obs, expert_act, expert_len, start_state, goal_state)
         
-        ## In the original code, they sort the input data for both expert and learner!
-        train_discrim_step(discrim_model,
-                           learner_obs, learner_act, learner_len,
-                           expert_obs, expert_act, expert_len,
-                           learner_start_state, learner_goal_state,
-                           expert_start_state, expert_goal_state)
+        for (batch_learner_obs, batch_learner_act, batch_learner_len, batch_learner_start_state, batch_learner_goal_state) ,\
+        (batch_expert_obs, batch_expert_act, batch_expert_len, batch_expert_start_state, batch_expert_goal_state) in zip(learner_loader, expert_loader):
+            train_discrim_step(discrim_model,
+                            batch_learner_obs, batch_learner_act, batch_learner_len,
+                            batch_expert_obs, batch_expert_act, batch_expert_len,
+                            batch_learner_start_state, batch_learner_goal_state,
+                            batch_expert_start_state, batch_expert_goal_state)
 
 
 
     for _ in range(num_gen_update):
-        learner_obs, learner_act, learner_len, learner_start_state, learner_goal_state = sample_batch(batch,
-                                                                                    learner_obs,
-                                                                                    learner_act,
-                                                                                    learner_len,
-                                                                                    start_state, goal_state)
-        expert_obs, expert_act, expert_len, expert_start_state, expert_goal_state = sample_batch(batch,
-                                                                                    expert_obs,
-                                                                                    expert_act,
-                                                                                    expert_len,
-                                                                                    start_state, goal_state)
+        learner_loader = sample_batch(batch, learner_obs, learner_act, learner_len, start_state, goal_state)
         
-        
-        train_policy_and_value_step(policy_model, value_model, discrim_model, env,
-                                    learner_obs, learner_act, learner_len,
-                                    learner_start_state, learner_goal_state)
+        for batch_learner_obs, batch_learner_act, batch_learner_len, batch_learner_start_state, batch_learner_goal_state in learner_loader:
+            train_policy_and_value_step(policy_model, value_model, discrim_model, env,
+                                        batch_learner_obs, batch_learner_act, batch_learner_len,
+                                        batch_learner_start_state, batch_learner_goal_state)
 
 
 
@@ -169,9 +156,9 @@ def calculate_return(
     all_actions = list(range(6)) # 6 is n_actions
     next_values = [value_net([start_state, goal_state, new_learner_obs, tf.repeat(tf.expand_dims([action], 0), batch_size, 0)]) for action in all_actions]
     next_values = tf.concat(next_values, axis = 1)
-    expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + rewards
+    # expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + rewards
     # expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + (rewards + discrim_rewards)
-    # expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + discrim_rewards
+    expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + discrim_rewards
 
     return expected_return
 
