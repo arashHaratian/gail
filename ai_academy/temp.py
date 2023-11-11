@@ -14,7 +14,7 @@ import random
 random.seed(1)
 tf.random.set_seed(1)
 np.random.seed(1)
-tf.config.set_visible_devices([], 'GPU')
+# tf.config.set_visible_devices([], 'GPU')
 
 batch = 256
 n_space = 3
@@ -26,7 +26,7 @@ env_option = ['disaster_3d', 17]
 
 env_dim = tf.constant([40, 40, 6])
 
-num_train_iter = 1000
+num_train_iter = 500
 
 n_features = 8
 
@@ -47,8 +47,8 @@ goal_inputs_train = tf.repeat(end_state, num_trajs, 0)
 
 ## ========================== Creating the networks ==========================
 discrim = Discrim_net(n_actions, n_features) 
-policy = Policy_net(n_actions, n_features, lr = 5e-4)
-value = Value_net(n_actions, n_features, lr = 5e-4)
+policy = Policy_net(n_actions, n_features)
+value = Value_net(n_actions, n_features)
 
 tf.keras.utils.plot_model(discrim, show_shapes=True,  show_trainable=True)
 tf.keras.utils.plot_model(policy, show_shapes=True,  show_trainable=True)
@@ -174,7 +174,7 @@ for i in range(num_train_iter):
         learner_obs, learner_act, learner_l,
         expert_obs, expert_act, expert_l,
         state_inputs_unrolled, goal_inputs_unrolled,
-        num_discrim_update = 3, num_gen_update = 6, batch = batch)
+        num_discrim_update = 2, num_gen_update = 6, batch = batch*4)
 
 
 # o, a, l, s, g = sample_batch(batch,learner_obs,learner_act,learner_l,state_inputs_unrolled, goal_inputs_unrolled)
