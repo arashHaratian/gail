@@ -16,11 +16,11 @@ tf.random.set_seed(1)
 np.random.seed(1)
 # tf.config.set_visible_devices([], 'GPU')
 
-batch = 256
+batch = 64
 n_space = 3
 n_actions = 6
-max_len = 50
-num_trajs = 10*batch+10
+max_len = 20
+num_trajs = batch+10
 
 env_option = ['disaster_3d', 17]
 
@@ -66,17 +66,17 @@ for i in range(num_train_iter):
 
 
     ## TODO: 1- with no last state
-    # learner_len[learner_len == (max_len+1)] -= 1
+    learner_len[learner_len == (max_len+1)] -= 1
 
     ## TODO:2- with no action for the last state
-    learner_len[learner_len != (max_len+1)] += 1
+    # learner_len[learner_len != (max_len+1)] += 1
 
     ## TODO: 3- 3 embeddings for each axis
     ## TODO: 4- D for reward 
     ## TODO: 5- D for reward + env reward
     ## TODO: 6- Embed start and the end points
 
-    print(f"{i} : {tf.reduce_mean(learner_rewards)} ; {(learner_len != (max_len + 1)).mean()}")
+    print(f"{i} : {tf.reduce_mean(learner_rewards)} ; {(learner_len != (max_len)).mean()}")
 
     # if i in [0, 20, 30, 40, 50, 90]:
     #     print(learner_observations)
@@ -141,8 +141,8 @@ for i in range(num_train_iter):
         traj_len = len(traj)
         expert_observations[idx, :traj_len, :] = traj
         expert_actions[idx, :traj_len - 1] = action
-        # expert_len[idx] = traj_len -1 
-        expert_len[idx] = traj_len
+        expert_len[idx] = traj_len -1 
+        # expert_len[idx] = traj_len
 
 
     S_expert = expert_len.sum()

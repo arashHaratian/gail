@@ -85,7 +85,7 @@ def train_discrim_step(
     gradients = tape.gradient(total_loss, discrim_model.trainable_weights)
     discrim_model.optimizer.apply_gradients(zip(gradients, discrim_model.trainable_weights))
     
-    print(f"discrim loss : {total_loss}")
+    # print(f"discrim loss : {total_loss}")
 
 
     ## ================= solution 2 ==================================
@@ -106,18 +106,21 @@ def train_policy_and_value_step(
     c_1 = 1,
     c_2 = 0.01):
 
+    ## TODO: learner_act = learner_act.squeeze()
     return_values = calculate_return(policy_model, value_model, discrim_model, env, learner_obs, learner_act, learner_len, start_state, goal_state)
 
     with tf.GradientTape() as tape1, tf.GradientTape() as tape2:
         act_prob = policy_model([start_state, goal_state, learner_obs])
-        policy_loss = tf.reduce_mean(act_prob.log_prob(learner_act) * return_values)
+        policy_loss = tf.reduce_mean(act_prob.log_prob(learner_act.squeeze()) * return_values)
 
         val_pred = value_model([start_state, goal_state, learner_obs, learner_act])
-        loss_value = value_model.loss(val_pred, return_values)
+        # loss_value = value_model.loss(tf.squeeze(val_pred), return_values)
+        loss_value = value_model.loss(val_pred, tf.expand_dims(return_values, 1))
         
         entropy = tf.reduce_mean(act_prob.entropy())
 
         loss = - (policy_loss - c_1 * loss_value + c_2 * entropy)
+        print(policy_loss, loss_value, entropy)
 
     gradients = tape1.gradient(loss, policy_model.trainable_weights)
     policy_model.optimizer.apply_gradients(zip(gradients, policy_model.trainable_weights))
@@ -125,7 +128,7 @@ def train_policy_and_value_step(
     gradients = tape2.gradient(loss, value_model.trainable_weights)
     value_model.optimizer.apply_gradients(zip(gradients, value_model.trainable_weights))
 
-    print(f"policy loss : {loss}")
+    # print(f"policy loss : {loss}")
         
 
     return
@@ -149,16 +152,16 @@ def calculate_return(
     
     new_learner_obs = tf.zeros((batch_size, learner_obs.shape[1] + 1, 3)).numpy()
     new_learner_obs[:, :learner_obs.shape[1], :] = learner_obs
-    new_learner_obs[:, learner_len, :] = new_states
+    new_learner_obs[range(batch_size), learner_len, :] = new_states
 
     action_prob = policy_net([start_state, goal_state, new_learner_obs])
 
     all_actions = list(range(6)) # 6 is n_actions
     next_values = [value_net([start_state, goal_state, new_learner_obs, tf.repeat(tf.expand_dims([action], 0), batch_size, 0)]) for action in all_actions]
     next_values = tf.concat(next_values, axis = 1)
-    # expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + rewards
-    # expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + (rewards + discrim_rewards)
-    expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + discrim_rewards
+    # expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + rewards.squeeze()
+    expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + tf.squeeze((rewards + discrim_rewards))
+    # expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + tf.squeeze(discrim_rewards)
 
     return expected_return
 
