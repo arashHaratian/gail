@@ -2,6 +2,7 @@
 import tensorflow as tf
 import math
 import random
+import numpy as np
 
 def sample_batch(batch, observations, actions, length, start, goal, sort_by_len =True):
     
@@ -45,7 +46,7 @@ def train(
         
         for (batch_learner_obs, batch_learner_act, batch_learner_len, batch_learner_start_state, batch_learner_goal_state) ,\
         (batch_expert_obs, batch_expert_act, batch_expert_len, batch_expert_start_state, batch_expert_goal_state) in zip(learner_loader, expert_loader):
-            train_discrim_step(discrim_model,
+            discrim_model = train_discrim_step(discrim_model,
                             batch_learner_obs, batch_learner_act, batch_learner_len,
                             batch_expert_obs, batch_expert_act, batch_expert_len,
                             batch_learner_start_state, batch_learner_goal_state,
@@ -57,9 +58,11 @@ def train(
         learner_loader = sample_batch(batch, learner_obs, learner_act, learner_len, start_state, goal_state)
         
         for batch_learner_obs, batch_learner_act, batch_learner_len, batch_learner_start_state, batch_learner_goal_state in learner_loader:
-            train_policy_and_value_step(policy_model, value_model, discrim_model, env,
+            policy_model, value_model = train_policy_and_value_step(policy_model, value_model, discrim_model, env,
                                         batch_learner_obs, batch_learner_act, batch_learner_len,
                                         batch_learner_start_state, batch_learner_goal_state)
+            
+    return policy_model, value_model, discrim_model
 
 
 
@@ -77,15 +80,17 @@ def train_discrim_step(
         learner_target = discrim_model([learner_start_state, learner_goal_state, learner_obs, learner_act])
         expert_target = discrim_model([expert_start_state, expert_goal_state, expert_obs, expert_act])
 
-        # cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
-        real_loss = discrim_model.loss(tf.zeros_like(expert_target), expert_target)
-        fake_loss = discrim_model.loss(tf.ones_like(learner_target), learner_target)
+        cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+        real_loss = cross_entropy(tf.zeros_like(expert_target), expert_target)
+        fake_loss = cross_entropy(tf.ones_like(learner_target), learner_target)
+        # real_loss = discrim_model.loss(tf.zeros_like(expert_target), expert_target)
+        # fake_loss = discrim_model.loss(tf.ones_like(learner_target), learner_target)
         total_loss = real_loss + fake_loss
         
     gradients = tape.gradient(total_loss, discrim_model.trainable_weights)
     discrim_model.optimizer.apply_gradients(zip(gradients, discrim_model.trainable_weights))
     
-    # print(f"discrim loss : {total_loss}")
+    print(f"discrim loss : {total_loss}")
 
 
     ## ================= solution 2 ==================================
@@ -94,7 +99,7 @@ def train_discrim_step(
     # target_data = tf.concat([tf.zeros(learner_len,), tf.ones(expert_len,)], axis = 0)
     # discrim_model.fit(input_data, target_data)
     
-    return
+    return discrim_model
 
 
 
@@ -111,13 +116,13 @@ def train_policy_and_value_step(
 
     with tf.GradientTape() as tape1, tf.GradientTape() as tape2:
         act_prob = policy_model([start_state, goal_state, learner_obs])
-        policy_loss = tf.reduce_mean(act_prob.log_prob(learner_act.squeeze()) * return_values)
+        policy_loss = tf.reduce_mean(act_prob.log_prob(learner_act.squeeze()) * return_values) # maximizing
 
         val_pred = value_model([start_state, goal_state, learner_obs, learner_act])
         # loss_value = value_model.loss(tf.squeeze(val_pred), return_values)
-        loss_value = value_model.loss(val_pred, tf.expand_dims(return_values, 1))
+        loss_value = value_model.loss(val_pred, tf.expand_dims(return_values, 1)) # minimizing
         
-        entropy = tf.reduce_mean(act_prob.entropy())
+        entropy = tf.reduce_mean(act_prob.entropy()) # maximizing
 
         loss = - (policy_loss - c_1 * loss_value + c_2 * entropy)
         print(policy_loss, loss_value, entropy)
@@ -128,10 +133,9 @@ def train_policy_and_value_step(
     gradients = tape2.gradient(loss, value_model.trainable_weights)
     value_model.optimizer.apply_gradients(zip(gradients, value_model.trainable_weights))
 
-    # print(f"policy loss : {loss}")
-        
+    print(f"policy loss : {loss}")
 
-    return
+    return policy_model, value_model
 
 
 
@@ -149,7 +153,6 @@ def calculate_return(
     # print(tf.reduce_mean(rewards),"  ", tf.reduce_mean(discrim_rewards), "  ",  tf.reduce_mean(rewards + discrim_rewards))
     # print(tf.reduce_mean(rewards))
 
-    
     new_learner_obs = tf.zeros((batch_size, learner_obs.shape[1] + 1, 3)).numpy()
     new_learner_obs[:, :learner_obs.shape[1], :] = learner_obs
     new_learner_obs[range(batch_size), learner_len, :] = new_states
@@ -160,8 +163,8 @@ def calculate_return(
     next_values = [value_net([start_state, goal_state, new_learner_obs, tf.repeat(tf.expand_dims([action], 0), batch_size, 0)]) for action in all_actions]
     next_values = tf.concat(next_values, axis = 1)
     # expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + rewards.squeeze()
-    expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + tf.squeeze((rewards + discrim_rewards))
-    # expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + tf.squeeze(discrim_rewards)
+    # expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + tf.squeeze((rewards + discrim_rewards))
+    expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + tf.squeeze(discrim_rewards)
 
     return expected_return
 
@@ -169,7 +172,9 @@ def calculate_return(
 
 def get_reward(model, data):
     prob = model(data)
+
     return - tf.math.log(tf.clip_by_value(prob, 1e-10, 1))
+    # return prob
 
 
 
@@ -233,6 +238,7 @@ def unroll_batch(
     obs_len = tf.ones((batch_size), dtype=tf.dtypes.int32) ## Size of len_of_seq for each batch
     actions = tf.zeros((batch_size, 1))
     rewards = tf.zeros((batch_size, 1))
+    last_actions = -1 * tf.ones((batch_size))
 
     done_mask = tf.zeros((batch_size), tf.bool).numpy()
 
@@ -251,6 +257,29 @@ def unroll_batch(
         action_dist = policy_net([notdone_obs[:, 0, :], tf.boolean_mask(goal_state, ~done_mask, axis=0), notdone_obs])
 
         action = action_dist.sample()
+
+        # TL Logic
+        if i == 0:
+            last_actions_np = action.numpy().copy()
+
+        all_values_equal_to_minus_one = tf.reduce_all(tf.equal(last_actions, -1))
+        if all_values_equal_to_minus_one == False:
+            action_np = action.numpy()
+            aux_last_actions_np = tf.boolean_mask(last_actions, ~done_mask).numpy()
+            pairs_to_swap = [(0, 1), (2, 3), (4, 5)]
+
+            for pair in pairs_to_swap:
+                mask = ((action_np == pair[0]) & (aux_last_actions_np == pair[1])) | ((action_np == pair[1]) & (aux_last_actions_np == pair[0]))
+                action_np[mask], aux_last_actions_np[mask] = aux_last_actions_np[mask], action_np[mask]
+
+            action = tf.constant(action_np)
+            last_actions = tf.constant(last_actions_np)
+        
+            false_indices = np.where(~done_mask)
+            last_actions_np[false_indices] = action_np
+
+        last_actions = tf.constant(last_actions_np)
+
         if tf.reduce_max(action) > 5:
             raise Exception
         if tf.reduce_min(action) < 0:

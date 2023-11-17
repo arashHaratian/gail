@@ -16,15 +16,15 @@ tf.random.set_seed(1)
 np.random.seed(1)
 # tf.config.set_visible_devices([], 'GPU')
 
-batch = 64
+batch = 32
 n_space = 3
 n_actions = 6
-max_len = 20
+max_len = 40
 num_trajs = batch+10
 
 env_option = ['disaster_3d', 17]
 
-env_dim = tf.constant([40, 40, 6])
+env_dim = tf.constant([8, 8, 6])
 
 num_train_iter = 500
 
@@ -37,32 +37,34 @@ env = Maze(obstacles)
 
 start_axis_min = 2
 start_axis_max = 3
-all_starts = [[*t] for t in itertools.product(range(start_axis_min, start_axis_max + 1), repeat = n_space)]
-state_inputs_train = [start for start in all_starts if start not in obstacles]
-state_inputs_train = tf.constant(random.choices(state_inputs_train, k = num_trajs))
+# all_starts = [[*t] for t in itertools.product(range(start_axis_min, start_axis_max + 1), repeat = n_space)]
+# state_inputs_train = [start for start in all_starts if start not in obstacles]
+# state_inputs_train = tf.constant(random.choices(state_inputs_train, k = num_trajs))
+start_state = tf.reshape(env.start_node, (1, -1))
+state_inputs_train = tf.repeat(start_state, num_trajs, 0)
 
 end_state = tf.reshape(env.end_node, (1, -1))
 goal_inputs_train = tf.repeat(end_state, num_trajs, 0)
 
-
 ## ========================== Creating the networks ==========================
-discrim = Discrim_net(n_actions, n_features) 
-policy = Policy_net(n_actions, n_features)
-value = Value_net(n_actions, n_features)
+initial_weights = tf.keras.initializers.glorot_uniform()
+policy = Policy_net(n_actions, n_features, kernel_initializer=initial_weights)
+value = Value_net(n_actions, n_features, kernel_initializer=initial_weights)
+discrim = Discrim_net(n_actions, n_features, kernel_initializer=initial_weights) 
 
 tf.keras.utils.plot_model(discrim, show_shapes=True,  show_trainable=True)
 tf.keras.utils.plot_model(policy, show_shapes=True,  show_trainable=True)
 tf.keras.utils.plot_model(value, show_shapes=True,  show_trainable=True)
 
-
 ## TODO: Forcing the weights of embeddings in discrim and value to be the same as policy 
 
 
 for i in range(num_train_iter):
+    print(f"Iteration {i}")
     ## ========================== Collecting the learner trajs ==========================
-    learner_observations, learner_actions, learner_len, learner_rewards =unroll_traj(state_inputs_train, goal_inputs_train,
-                                                                                    env, policy,
-                                                                                    batch, num_trajs, max_len)
+    learner_observations, learner_actions, learner_len, learner_rewards = unroll_traj(state_inputs_train, goal_inputs_train,
+                                                                                      env, policy,
+                                                                                      batch, num_trajs, max_len)
 
 
     ## TODO: 1- with no last state
@@ -169,12 +171,24 @@ for i in range(num_train_iter):
         raise Exception
 
     ## ========================== Train using the collected trajs ==========================
-    train(policy, value, discrim,
-        env,
-        learner_obs, learner_act, learner_l,
-        expert_obs, expert_act, expert_l,
-        state_inputs_unrolled, goal_inputs_unrolled,
-        num_discrim_update = 2, num_gen_update = 6, batch = batch*4)
+    policy, value, discrim = train(policy, value, discrim,
+                                   env,
+                                   learner_obs, learner_act, learner_l,
+                                   expert_obs, expert_act, expert_l,
+                                   state_inputs_unrolled, goal_inputs_unrolled,
+                                   num_discrim_update = 2, num_gen_update = 6, batch = batch*4
+    )
+
+    learner_observations, learner_actions, learner_len, learner_rewards = unroll_traj(state_inputs_train, goal_inputs_train,
+                                                                                      env, policy,
+                                                                                      1, 1, max_len)
+
+    # policy.save_weights('policy_model_weights.h5')
+    # policy.save('policy_model_config.h5')
+    # value.save_weights('value_model_weights.h5')
+    # value.save('value_model_config.h5')
+    # discrim.save_weights('discrim_model_weights.h5')
+    # discrim.save('discrim_model_config.h5')
 
 
 # o, a, l, s, g = sample_batch(batch,learner_obs,learner_act,learner_l,state_inputs_unrolled, goal_inputs_unrolled)

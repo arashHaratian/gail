@@ -15,7 +15,8 @@ def Policy_net(
         width: int = 21, 
         depth: int = 11,
         hidden_dim = 64,
-        lr = 5e-5
+        lr = 0.001, # 5e-5,
+        kernel_initializer=None
     ):
     """Creates a keras network for policy net
     
@@ -42,6 +43,11 @@ def Policy_net(
     # 3- somehow make x,y,z into one value (for instance sum) and then embed for that
     # embed = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input)
 
+    # if kernel_initializer is not None:
+    #     embedding_initializer = kernel_initializer
+    # else:
+    #     embedding_initializer = 'glorot_uniform'
+
     embed_x = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input[:, :, 0])
     embed_y = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input[:, :, 1])
     embed_z = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input[:, :, 2])
@@ -62,10 +68,10 @@ def Policy_net(
     x = layers.Concatenate(axis=1)([x_rnn, start_input, goal_input])
 
     ## Vanilla Policy class in the original code 
-    x = layers.Dense(hidden_dim, activation='relu')(x)
-    x = layers.Dense(hidden_dim, activation='relu')(x)
-    x = layers.Dense(hidden_dim, activation='relu')(x)
-    x = layers.Dense(n_actions, activation='linear')(x)
+    x = layers.Dense(hidden_dim, activation='relu', kernel_initializer=kernel_initializer)(x)
+    x = layers.Dense(hidden_dim, activation='relu', kernel_initializer=kernel_initializer)(x)
+    x = layers.Dense(hidden_dim, activation='relu', kernel_initializer=kernel_initializer)(x)
+    x = layers.Dense(n_actions, activation='linear', kernel_initializer=kernel_initializer)(x)
 
     # last_states = state_seq_input[:, seq_len-1, :] ## TODO We have to have access to the sequence lengths not seq_len
     # action_domain = tf.zeros((n_features, n_actions)) ##TODO should put 1 for terminal state ## Not sure ... check the code

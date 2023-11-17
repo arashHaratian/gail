@@ -1,6 +1,7 @@
 import numpy as np
 import yaml
 from environment import get_main_file, get_obstacles
+from bi_a_star_2 import main_bi_astar
 
 yaml_file = get_main_file()
 with open(f'{yaml_file}.yaml', 'r') as f:
@@ -36,6 +37,13 @@ class Maze():
         self.uncertainty_obstacles = []
         self.cur_pos = self.start_node.copy()
         self.obstacles = obstacles
+        env_option = ['disaster_3d', 17]
+        start_point = [2, 2, 2]
+        end_point = [7, 7, 5]
+        self.a_traj, self.a_actions, _ = main_bi_astar(
+           use_yaml=False, options=env_option, dimension_3=True, 
+           user_start_node=start_point, user_goal_node=end_point
+        )
 
 
     def _build_maze(self):
@@ -126,20 +134,27 @@ class Maze():
         if n_actions == self.n_actions:
           end_node_match = np.all(new_states == self.end_node, axis=2)
           obstacle_matches = np.all(np.any(new_states[:, :, np.newaxis] == np.array(self.obstacles)[np.newaxis, np.newaxis, :], axis=2), axis=2)
+          traj_matches = np.all(np.any(new_states[:, :, np.newaxis] == np.array(self.a_traj)[np.newaxis, np.newaxis, :], axis=2), axis=2)
           out_of_bounds = np.any(
               (new_states < self.inferior_size_limit) | (new_states > self.superior_size_limit), axis=2
           )
         else:
           end_node_match = np.all(new_states == self.end_node, axis=1)
           obstacle_matches = np.all(new_states[:, None] == self.obstacles, axis=2).any(axis=1)
+          traj_matches = np.all(new_states[:, None] == self.a_traj, axis=2).any(axis=1)
           out_of_bounds = np.any(
               (new_states < self.inferior_size_limit) | (new_states > self.superior_size_limit), axis=1
           )
 
-        rewards[end_node_match] = MAX_REWARD
+        # rewards[end_node_match] = MAX_REWARD
+        # dones[end_node_match] = 1
+        # rewards[obstacle_matches] = OBSTACLE_REWARD
+        # rewards[out_of_bounds] = OUT_REWARD
+        rewards[traj_matches] = 3 # RIGHT_TRAJ
+        rewards[obstacle_matches] = -2 # OBSTACLE_REWARD
+        rewards[out_of_bounds] = -5 # OUT_REWARD
+        rewards[end_node_match] = 10 # MAX_REWARD
         dones[end_node_match] = 1
-        rewards[obstacle_matches] = OBSTACLE_REWARD
-        rewards[out_of_bounds] = OUT_REWARD
 
         # Final mask
         if n_actions == self.n_actions:

@@ -17,7 +17,8 @@ def Value_net(
         width: int = 21, 
         depth: int = 11,
         hidden_dim = 64,
-        lr = 5e-5
+        lr = 0.001, # 5e-5,
+        kernel_initializer=None
     ):
     """Creates a keras network for value net
     
@@ -43,6 +44,12 @@ def Value_net(
     # 2- same as now but have big hidden_dim   (current implmentation, put a big hidden dim)
     # 3- somehow make x,y,z into one value (for instance sum) and then embed for that
     # embed = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input)
+
+    # if kernel_initializer is not None:
+    #     embedding_initializer = kernel_initializer
+    # else:
+    #     embedding_initializer = 'glorot_uniform'
+
     embed_x = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input[:, :, 0])
     embed_y = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input[:, :, 1])
     embed_z = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input[:, :, 2])
@@ -66,10 +73,10 @@ def Value_net(
     x = layers.Concatenate(axis=1)([x_rnn, start_input, goal_input, one_hot_action])
 
     ## Vanilla Value net class in the original code 
-    x = layers.Dense(hidden_dim, activation='relu')(x)
-    x = layers.Dense(hidden_dim, activation='relu')(x)
-    x = layers.Dense(hidden_dim, activation='relu')(x)
-    value = layers.Dense(1, activation='linear')(x)
+    x = layers.Dense(hidden_dim, activation='relu', kernel_initializer=kernel_initializer)(x)
+    x = layers.Dense(hidden_dim, activation='relu', kernel_initializer=kernel_initializer)(x)
+    x = layers.Dense(hidden_dim, activation='relu', kernel_initializer=kernel_initializer)(x)
+    value = layers.Dense(1, activation='linear', kernel_initializer=kernel_initializer)(x)
 
     model = Model([start_input, goal_input, state_seq_input, action_input], value)
     model.compile(optimizer=Adam(learning_rate = lr), loss=tf.keras.losses.MeanSquaredError())
