@@ -55,4 +55,4 @@
 ## Other things to try
 
 - [ ] Maybe normalize the return?
-- [ ] Forcing the weights of embeddings in discrim and value to be the same as policy 
+- [x] **(on "run_init_for_all_layers")** Forcing the weights of embeddings in discrim and value to be the same as policy 
