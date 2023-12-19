@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow import keras
+from keras.initializers import glorot_uniform, orthogonal, random_uniform
 from keras.models import Model
 from keras import layers
 from keras.optimizers import RMSprop, Adam
@@ -16,7 +17,7 @@ def Policy_net(
         depth: int = 11,
         hidden_dim = 64,
         lr = 0.001, # 5e-5,
-        kernel_initializer=None
+        seed=None
     ):
     """Creates a keras network for policy net
     
@@ -41,16 +42,12 @@ def Policy_net(
     # 1- embeding for each dim and then concat 
     # 2- same as now but have big hidden_dim   (current implmentation, put a big hidden dim)
     # 3- somehow make x,y,z into one value (for instance sum) and then embed for that
-    # embed = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input)
+    # embed = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True, embeddings_initializer = random_uniform(seed = seed))(state_seq_input)
 
-    # if kernel_initializer is not None:
-    #     embedding_initializer = kernel_initializer
-    # else:
-    #     embedding_initializer = 'glorot_uniform'
 
-    embed_x = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input[:, :, 0])
-    embed_y = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input[:, :, 1])
-    embed_z = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True)(state_seq_input[:, :, 2])
+    embed_x = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True, embeddings_initializer = random_uniform(seed = seed))(state_seq_input[:, :, 0])
+    embed_y = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True, embeddings_initializer = random_uniform(seed = seed))(state_seq_input[:, :, 1])
+    embed_z = layers.Embedding(n_features + 1, hidden_dim, mask_zero = True, embeddings_initializer = random_uniform(seed = seed))(state_seq_input[:, :, 2])
     
     ## Embed is (None, seq_len, n_space, hidden_dim) ---reshape---> (None, seq_len, n_space * hidden_dim)
     # embed = layers.Reshape((-1, n_space * hidden_dim))(embed)
@@ -59,17 +56,17 @@ def Policy_net(
      # padded_embed = pad_sequences(embed, padding='post')
     x_rnn = layers.RNN(
         layers.StackedRNNCells(
-        [layers.GRUCell(hidden_dim),
-        layers.GRUCell(hidden_dim),
-        layers.GRUCell(hidden_dim)]))(embed)
+        [layers.GRUCell(hidden_dim, kernel_initializer=glorot_uniform(seed = seed), recurrent_initializer=orthogonal(seed = seed)),
+        layers.GRUCell(hidden_dim, kernel_initializer=glorot_uniform(seed = seed), recurrent_initializer=orthogonal(seed = seed)),
+        layers.GRUCell(hidden_dim, kernel_initializer=glorot_uniform(seed = seed), recurrent_initializer=orthogonal(seed = seed))]))(embed)
 
     x = layers.Concatenate(axis=1)([x_rnn, start_input, goal_input])
 
     ## Vanilla Policy class in the original code 
-    x = layers.Dense(hidden_dim, activation='relu', kernel_initializer=kernel_initializer)(x)
-    x = layers.Dense(hidden_dim, activation='relu', kernel_initializer=kernel_initializer)(x)
-    x = layers.Dense(hidden_dim, activation='relu', kernel_initializer=kernel_initializer)(x)
-    x = layers.Dense(n_actions, activation='linear', kernel_initializer=kernel_initializer)(x)
+    x = layers.Dense(hidden_dim, activation='relu', kernel_initializer=glorot_uniform(seed = seed))(x)
+    x = layers.Dense(hidden_dim, activation='relu', kernel_initializer=glorot_uniform(seed = seed))(x)
+    x = layers.Dense(hidden_dim, activation='relu', kernel_initializer=glorot_uniform(seed = seed))(x)
+    x = layers.Dense(n_actions, activation='linear', kernel_initializer=glorot_uniform(seed = seed))(x)
 
     # last_states = state_seq_input[:, seq_len-1, :] ## TODO We have to have access to the sequence lengths not seq_len
     # action_domain = tf.zeros((n_features, n_actions)) ##TODO should put 1 for terminal state ## Not sure ... check the code

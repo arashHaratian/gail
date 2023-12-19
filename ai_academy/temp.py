@@ -47,10 +47,9 @@ end_state = tf.reshape(env.end_node, (1, -1))
 goal_inputs_train = tf.repeat(end_state, num_trajs, 0)
 
 ## ========================== Creating the networks ==========================
-initial_weights = tf.keras.initializers.glorot_uniform(seed=SEED)
-policy = Policy_net(n_actions, n_features, kernel_initializer=initial_weights, lr = 5e-4)
-value = Value_net(n_actions, n_features, kernel_initializer=initial_weights, lr = 5e-4)
-discrim = Discrim_net(n_actions, n_features, kernel_initializer=initial_weights, lr = 5e-4)
+policy = Policy_net(n_actions, n_features, seed = SEED, lr = 5e-4)
+value = Value_net(n_actions, n_features, seed = SEED, lr = 5e-4)
+discrim = Discrim_net(n_actions, n_features, seed = SEED, lr = 5e-4)
 
 tf.keras.utils.plot_model(discrim, show_shapes=True,  show_trainable=True)
 tf.keras.utils.plot_model(policy, show_shapes=True,  show_trainable=True)
