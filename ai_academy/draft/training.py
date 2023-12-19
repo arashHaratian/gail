@@ -120,7 +120,7 @@ def train_discrim_step(
     gradients = tape.gradient(total_loss, discrim_model.trainable_weights)
     discrim_model.optimizer.apply_gradients(zip(gradients, discrim_model.trainable_weights))
     
-    print(f"expert acc : {(expert_target.numpy()<0.5).mean()}  ; learner acc : {(learner_target.numpy()>0.5).mean()}")
+    # print(f"expert acc : {(expert_target.numpy()<0.5).mean()}  ; learner acc : {(learner_target.numpy()>0.5).mean()}")
     # print(f"discrim loss : {total_loss}")
 
 
