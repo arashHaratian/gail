@@ -55,8 +55,6 @@ def Policy_net(
     ## Embed is (None, seq_len, n_space, hidden_dim) ---reshape---> (None, seq_len, n_space * hidden_dim)
     # embed = layers.Reshape((-1, n_space * hidden_dim))(embed)
     embed = layers.Concatenate(axis=2)([embed_x, embed_y, embed_z])
-
-    ## TODO: embed start and the end
     
      # padded_embed = pad_sequences(embed, padding='post')
     x_rnn = layers.RNN(
@@ -85,7 +83,7 @@ def Policy_net(
     action_dist = tfp.layers.DistributionLambda(lambda p: tfp.distributions.Categorical(probs = p))(prob)
     model = Model([start_input, goal_input, state_seq_input], action_dist)
 
-    model.compile(optimizer=Adam(learning_rate= lr))
+    model.compile(optimizer=Adam(learning_rate = lr))
 
     return model
 

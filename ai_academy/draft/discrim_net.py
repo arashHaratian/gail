@@ -60,10 +60,7 @@ def Discrim_net(
     # embed = layers.Reshape((-1, n_space * hidden_dim))(embed)
     embed = layers.Concatenate(axis=2)([embed_x, embed_y, embed_z])
     
-    ## TODO: onehot the action with layers.CategoryEncoding
     one_hot_action = layers.CategoryEncoding(n_actions, "one_hot")(action_input)
-
-    ## TODO: embed start and the end
 
     # padded_embed = pad_sequences(embed, padding='post')
 

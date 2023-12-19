@@ -11,16 +11,17 @@ import itertools
 import random
 
 
-random.seed(1)
-tf.random.set_seed(1)
-np.random.seed(1)
+SEED = 100
+random.seed(SEED)
+tf.random.set_seed(SEED)
+np.random.seed(SEED)
 # tf.config.set_visible_devices([], 'GPU')
 
 batch = 32
 n_space = 3
 n_actions = 6
 max_len = 40
-num_trajs = batch+10
+num_trajs = 100
 
 env_option = ['disaster_3d', 17]
 
@@ -36,21 +37,20 @@ env = Maze(obstacles)
 
 
 start_axis_min = 2
-start_axis_max = 3
-# all_starts = [[*t] for t in itertools.product(range(start_axis_min, start_axis_max + 1), repeat = n_space)]
-# state_inputs_train = [start for start in all_starts if start not in obstacles]
-# state_inputs_train = tf.constant(random.choices(state_inputs_train, k = num_trajs))
-start_state = tf.reshape(env.start_node, (1, -1))
-state_inputs_train = tf.repeat(start_state, num_trajs, 0)
+start_axis_max = 5
+
+all_starts = [[*t] for t in itertools.product(range(start_axis_min, start_axis_max + 1), repeat = n_space)]
+state_inputs_train = [start for start in all_starts if start not in obstacles]
+state_inputs_train = tf.constant(random.choices(state_inputs_train, k = num_trajs))
 
 end_state = tf.reshape(env.end_node, (1, -1))
 goal_inputs_train = tf.repeat(end_state, num_trajs, 0)
 
 ## ========================== Creating the networks ==========================
-initial_weights = tf.keras.initializers.glorot_uniform()
-policy = Policy_net(n_actions, n_features, kernel_initializer=initial_weights)
-value = Value_net(n_actions, n_features, kernel_initializer=initial_weights)
-discrim = Discrim_net(n_actions, n_features, kernel_initializer=initial_weights) 
+initial_weights = tf.keras.initializers.glorot_uniform(seed=SEED)
+policy = Policy_net(n_actions, n_features, kernel_initializer=initial_weights, lr = 5e-4)
+value = Value_net(n_actions, n_features, kernel_initializer=initial_weights, lr = 5e-4)
+discrim = Discrim_net(n_actions, n_features, kernel_initializer=initial_weights, lr = 5e-4)
 
 tf.keras.utils.plot_model(discrim, show_shapes=True,  show_trainable=True)
 tf.keras.utils.plot_model(policy, show_shapes=True,  show_trainable=True)
@@ -60,6 +60,16 @@ tf.keras.utils.plot_model(value, show_shapes=True,  show_trainable=True)
 
 
 for i in range(num_train_iter):
+
+
+    all_starts = [[*t] for t in itertools.product(range(start_axis_min, start_axis_max + 1), repeat = n_space)]
+    state_inputs_train = [start for start in all_starts if start not in obstacles]
+    state_inputs_train = tf.constant(random.choices(state_inputs_train, k = num_trajs))
+
+    end_state = tf.reshape(env.end_node, (1, -1))
+    goal_inputs_train = tf.repeat(end_state, num_trajs, 0)
+
+
     print(f"Iteration {i}")
     ## ========================== Collecting the learner trajs ==========================
     learner_observations, learner_actions, learner_len, learner_rewards = unroll_traj(state_inputs_train, goal_inputs_train,
@@ -74,17 +84,8 @@ for i in range(num_train_iter):
     # learner_len[learner_len != (max_len+1)] += 1
 
     ## TODO: 3- 3 embeddings for each axis
-    ## TODO: 4- D for reward 
-    ## TODO: 5- D for reward + env reward
-    ## TODO: 6- Embed start and the end points
 
     print(f"{i} : {tf.reduce_mean(learner_rewards)} ; {(learner_len != (max_len)).mean()}")
-
-    # if i in [0, 20, 30, 40, 50, 90]:
-    #     print(learner_observations)
-    #     print(learner_actions)
-    #     print(learner_len)
-    #     print(learner_rewards)
 
     S_learner = learner_len.sum()
     M_learner = learner_len.max()
@@ -118,19 +119,9 @@ for i in range(num_train_iter):
     if (learner_l == 0).any():
         raise Exception
 
-    ## TODO: check if the starts are correct 
-    # state_inputs_unrolled = tf.zeros((S_learner, n_space), dtype = tf.dtypes.int32).numpy()
-    # # goal_inputs_unrolled = tf.zeros((S_learner, n_space), dtype = tf.dtypes.int32).numpy()
-    # for idx, seq_length in enumerate(learner_len):
-    #     state_inputs_unrolled[idx*seq_length:(idx+1)*seq_length, :] = state_inputs_train[idx, :]
-
-    #     ## Since the goals are the same use  the code after for loop
-    #     # goal_inputs_unrolled[idx*seq_length:(idx+1)*seq_length, :] = goal_inputs_train[idx, :]
-
-    # ## If goals are different, coment this line and use the last line in the above for loop
-    goal_inputs_unrolled = tf.repeat(end_state, S_learner, 0).numpy()
 
     state_inputs_unrolled = learner_obs[:, 0, :]
+    goal_inputs_unrolled = tf.repeat(end_state, S_learner, 0).numpy()
 
     ## ========================== Collecting the expert (b-star) trajs ==========================
     expert_observations = tf.zeros((num_trajs, max_len + 1, 3)).numpy()
@@ -191,7 +182,6 @@ for i in range(num_train_iter):
     # discrim.save('discrim_model_config.h5')
 
 
-# o, a, l, s, g = sample_batch(batch,learner_obs,learner_act,learner_l,state_inputs_unrolled, goal_inputs_unrolled)
 policy.save("./draft/policy_trim_3_embed.h5")
 discrim.save("./draft/discrim_trim_3_embed.h5")
 value.save("./drgaft/value_trim_3_embed.h5")

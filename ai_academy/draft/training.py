@@ -4,7 +4,37 @@ import math
 import random
 import numpy as np
 
-def sample_batch(batch, observations, actions, length, start, goal, sort_by_len =True):
+def shorten_traj(sampled_obs, sampled_len, shorten_traj_len):
+    ## TO cut the first shorten_traj_len steps ##
+    long_traj_idx = np.where(sampled_len > shorten_traj_len)[0]
+    short_traj_idx = np.where(sampled_len <= shorten_traj_len)[0]
+
+    new_sampled_obs = np.zeros_like(sampled_obs)
+    for idx in long_traj_idx:
+        new_sampled_obs[idx, : - shorten_traj_len, :] = sampled_obs[idx, shorten_traj_len : , :]
+
+
+    new_sampled_obs[short_traj_idx] = sampled_obs[short_traj_idx]
+    sampled_len[long_traj_idx] -= shorten_traj_len
+
+    return new_sampled_obs, sampled_len
+
+    ## TO keep the last shorten_traj_len steps ##
+
+    # long_traj_idx = np.where(sampled_len > shorten_traj_len)[0]
+    # short_traj_idx = np.where(sampled_len <= shorten_traj_len)[0]
+    # new_sampled_obs = np.zeros_like(sampled_obs)
+    # for idx in long_traj_idx:
+    #     new_sampled_obs[idx, : shorten_traj_len, :] = sampled_obs[idx, sampled_len[idx] - shorten_traj_len : sampled_len[idx], :]
+
+    # new_sampled_obs[short_traj_idx] = sampled_obs[short_traj_idx]
+    # sampled_len[long_traj_idx] = shorten_traj_len
+
+    # return new_sampled_obs, sampled_len
+
+
+
+def sample_batch(batch, observations, actions, length, start, goal, sort_by_len =True, shorten_traj_len = 0):
     
     data_size = observations.shape[0] ## number of trajs
     idx = list(range(data_size))
@@ -17,6 +47,9 @@ def sample_batch(batch, observations, actions, length, start, goal, sort_by_len 
         sampled_len = length[batch_idx]
         sampled_start = start[batch_idx]
         sampled_goal = goal[batch_idx]
+
+        if shorten_traj_len:
+            sampled_obs, sampled_len = shorten_traj(sampled_obs, sampled_len, shorten_traj_len)
         
         ## In the original code, they sort the input data for both expert and learner!
         if sort_by_len:
@@ -80,17 +113,15 @@ def train_discrim_step(
         learner_target = discrim_model([learner_start_state, learner_goal_state, learner_obs, learner_act])
         expert_target = discrim_model([expert_start_state, expert_goal_state, expert_obs, expert_act])
 
-        cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
-        real_loss = cross_entropy(tf.zeros_like(expert_target), expert_target)
-        fake_loss = cross_entropy(tf.ones_like(learner_target), learner_target)
-        # real_loss = discrim_model.loss(tf.zeros_like(expert_target), expert_target)
-        # fake_loss = discrim_model.loss(tf.ones_like(learner_target), learner_target)
+        real_loss = discrim_model.loss(tf.zeros_like(expert_target), expert_target)
+        fake_loss = discrim_model.loss(tf.ones_like(learner_target), learner_target)
         total_loss = real_loss + fake_loss
         
     gradients = tape.gradient(total_loss, discrim_model.trainable_weights)
     discrim_model.optimizer.apply_gradients(zip(gradients, discrim_model.trainable_weights))
     
-    print(f"discrim loss : {total_loss}")
+    print(f"expert acc : {(expert_target.numpy()<0.5).mean()}  ; learner acc : {(learner_target.numpy()>0.5).mean()}")
+    # print(f"discrim loss : {total_loss}")
 
 
     ## ================= solution 2 ==================================
@@ -119,13 +150,15 @@ def train_policy_and_value_step(
         policy_loss = tf.reduce_mean(act_prob.log_prob(learner_act.squeeze()) * return_values) # maximizing
 
         val_pred = value_model([start_state, goal_state, learner_obs, learner_act])
-        # loss_value = value_model.loss(tf.squeeze(val_pred), return_values)
         loss_value = value_model.loss(val_pred, tf.expand_dims(return_values, 1)) # minimizing
         
         entropy = tf.reduce_mean(act_prob.entropy()) # maximizing
 
         loss = - (policy_loss - c_1 * loss_value + c_2 * entropy)
-        print(policy_loss, loss_value, entropy)
+        
+
+    if tf.math.is_inf(policy_loss):
+        raise Exception
 
     gradients = tape1.gradient(loss, policy_model.trainable_weights)
     policy_model.optimizer.apply_gradients(zip(gradients, policy_model.trainable_weights))
@@ -133,7 +166,8 @@ def train_policy_and_value_step(
     gradients = tape2.gradient(loss, value_model.trainable_weights)
     value_model.optimizer.apply_gradients(zip(gradients, value_model.trainable_weights))
 
-    print(f"policy loss : {loss}")
+    # print(policy_loss, loss_value, entropy)
+    # print(f"policy loss : {loss}")
 
     return policy_model, value_model
 
@@ -149,9 +183,7 @@ def calculate_return(
     batch_size = learner_obs.shape[0]
     discrim_rewards = get_reward(discrim_model, [start_state, goal_state, learner_obs, learner_act])
     current_state = learner_obs[range(batch_size), learner_len-1, :]
-    new_states, rewards, _ = env.step_vectorized(current_state, tf.convert_to_tensor(learner_act.squeeze(1))) ## Change actions from (batch, 1) to (batch, )
-    # print(tf.reduce_mean(rewards),"  ", tf.reduce_mean(discrim_rewards), "  ",  tf.reduce_mean(rewards + discrim_rewards))
-    # print(tf.reduce_mean(rewards))
+    new_states, rewards, is_terminal_new_states = env.step_vectorized(current_state, tf.convert_to_tensor(learner_act.squeeze(1))) ## Change actions from (batch, 1) to (batch, )
 
     new_learner_obs = tf.zeros((batch_size, learner_obs.shape[1] + 1, 3)).numpy()
     new_learner_obs[:, :learner_obs.shape[1], :] = learner_obs
@@ -161,7 +193,18 @@ def calculate_return(
 
     all_actions = list(range(6)) # 6 is n_actions
     next_values = [value_net([start_state, goal_state, new_learner_obs, tf.repeat(tf.expand_dims([action], 0), batch_size, 0)]) for action in all_actions]
-    next_values = tf.concat(next_values, axis = 1)
+    next_values = np.concatenate(next_values, axis = 1)
+    next_values[is_terminal_new_states] = 0 ## remove the estimated value of the terminal nodes
+
+
+    # print(tf.reduce_mean(rewards).numpy(),"  ", tf.reduce_mean(discrim_rewards).numpy(), "  ",  tf.reduce_mean(rewards + discrim_rewards).numpy())
+
+    # if(np.any(np.all(goal_state[0, :] == current_state, axis = 1))):
+    #     raise Exception
+    # if(np.any(is_terminal_new_states)):
+    #     print("here")
+
+   
     # expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + rewards.squeeze()
     # expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + tf.squeeze((rewards + discrim_rewards))
     expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + tf.squeeze(discrim_rewards)
@@ -174,7 +217,6 @@ def get_reward(model, data):
     prob = model(data)
 
     return - tf.math.log(tf.clip_by_value(prob, 1e-10, 1))
-    # return prob
 
 
 
