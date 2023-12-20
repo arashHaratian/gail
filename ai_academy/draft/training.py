@@ -6,31 +6,31 @@ import numpy as np
 
 def shorten_traj(sampled_obs, sampled_len, shorten_traj_len):
     ## TO cut the first shorten_traj_len steps ##
-    long_traj_idx = np.where(sampled_len > shorten_traj_len)[0]
-    short_traj_idx = np.where(sampled_len <= shorten_traj_len)[0]
+    # long_traj_idx = np.where(sampled_len > shorten_traj_len)[0]
+    # short_traj_idx = np.where(sampled_len <= shorten_traj_len)[0]
 
-    new_sampled_obs = np.zeros_like(sampled_obs)
-    for idx in long_traj_idx:
-        new_sampled_obs[idx, : - shorten_traj_len, :] = sampled_obs[idx, shorten_traj_len : , :]
+    # new_sampled_obs = np.zeros_like(sampled_obs)
+    # for idx in long_traj_idx:
+    #     new_sampled_obs[idx, : - shorten_traj_len, :] = sampled_obs[idx, shorten_traj_len : , :]
 
 
-    new_sampled_obs[short_traj_idx] = sampled_obs[short_traj_idx]
-    sampled_len[long_traj_idx] -= shorten_traj_len
+    # new_sampled_obs[short_traj_idx] = sampled_obs[short_traj_idx]
+    # sampled_len[long_traj_idx] -= shorten_traj_len
 
-    return new_sampled_obs, sampled_len
+    # return new_sampled_obs, sampled_len
 
     ## TO keep the last shorten_traj_len steps ##
 
-    # long_traj_idx = np.where(sampled_len > shorten_traj_len)[0]
-    # short_traj_idx = np.where(sampled_len <= shorten_traj_len)[0]
-    # new_sampled_obs = np.zeros_like(sampled_obs)
-    # for idx in long_traj_idx:
-    #     new_sampled_obs[idx, : shorten_traj_len, :] = sampled_obs[idx, sampled_len[idx] - shorten_traj_len : sampled_len[idx], :]
+    long_traj_idx = np.where(sampled_len > shorten_traj_len)[0]
+    short_traj_idx = np.where(sampled_len <= shorten_traj_len)[0]
+    new_sampled_obs = np.zeros_like(sampled_obs)
+    for idx in long_traj_idx:
+        new_sampled_obs[idx, : shorten_traj_len, :] = sampled_obs[idx, sampled_len[idx] - shorten_traj_len : sampled_len[idx], :]
 
-    # new_sampled_obs[short_traj_idx] = sampled_obs[short_traj_idx]
-    # sampled_len[long_traj_idx] = shorten_traj_len
+    new_sampled_obs[short_traj_idx] = sampled_obs[short_traj_idx]
+    sampled_len[long_traj_idx] = shorten_traj_len
 
-    # return new_sampled_obs, sampled_len
+    return new_sampled_obs, sampled_len
 
 
 
@@ -74,8 +74,8 @@ def train(
     
 
     for _ in range(num_discrim_update):
-        learner_loader = sample_batch(batch, learner_obs, learner_act, learner_len, start_state, goal_state)
-        expert_loader = sample_batch(batch, expert_obs, expert_act, expert_len, start_state, goal_state)
+        learner_loader = sample_batch(batch, learner_obs, learner_act, learner_len, start_state, goal_state, 3)
+        expert_loader = sample_batch(batch, expert_obs, expert_act, expert_len, start_state, goal_state, 3)
         
         for (batch_learner_obs, batch_learner_act, batch_learner_len, batch_learner_start_state, batch_learner_goal_state) ,\
         (batch_expert_obs, batch_expert_act, batch_expert_len, batch_expert_start_state, batch_expert_goal_state) in zip(learner_loader, expert_loader):
@@ -88,12 +88,13 @@ def train(
 
 
     for _ in range(num_gen_update):
-        learner_loader = sample_batch(batch, learner_obs, learner_act, learner_len, start_state, goal_state)
+        learner_loader = sample_batch(100000, learner_obs, learner_act, learner_len, start_state, goal_state)
         
         for batch_learner_obs, batch_learner_act, batch_learner_len, batch_learner_start_state, batch_learner_goal_state in learner_loader:
             policy_model, value_model = train_policy_and_value_step(policy_model, value_model, discrim_model, env,
                                         batch_learner_obs, batch_learner_act, batch_learner_len,
                                         batch_learner_start_state, batch_learner_goal_state)
+            break
             
     return policy_model, value_model, discrim_model
 

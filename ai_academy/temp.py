@@ -166,7 +166,7 @@ for i in range(num_train_iter):
                                    learner_obs, learner_act, learner_l,
                                    expert_obs, expert_act, expert_l,
                                    state_inputs_unrolled, goal_inputs_unrolled,
-                                   num_discrim_update = 2, num_gen_update = 6, batch = batch*4
+                                   num_discrim_update = 1, num_gen_update = 1, batch = batch*4
     )
 
     learner_observations, learner_actions, learner_len, learner_rewards = unroll_traj(state_inputs_train, goal_inputs_train,
