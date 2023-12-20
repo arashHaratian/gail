@@ -88,13 +88,12 @@ def train(
 
 
     for _ in range(num_gen_update):
-        learner_loader = sample_batch(100000, learner_obs, learner_act, learner_len, start_state, goal_state)
+        learner_loader = sample_batch(2048, learner_obs, learner_act, learner_len, start_state, goal_state)
         
         for batch_learner_obs, batch_learner_act, batch_learner_len, batch_learner_start_state, batch_learner_goal_state in learner_loader:
             policy_model, value_model = train_policy_and_value_step(policy_model, value_model, discrim_model, env,
                                         batch_learner_obs, batch_learner_act, batch_learner_len,
                                         batch_learner_start_state, batch_learner_goal_state)
-            break
             
     return policy_model, value_model, discrim_model
 
