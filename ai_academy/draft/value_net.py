@@ -57,7 +57,6 @@ def Value_net(
     
     one_hot_action = layers.CategoryEncoding(n_actions, "one_hot")(action_input)
     
-    # padded_embed = pad_sequences(embed, padding='post')
     x_rnn = layers.RNN(
         layers.StackedRNNCells(
         [layers.GRUCell(hidden_dim, kernel_initializer=glorot_uniform(seed = seed), recurrent_initializer=orthogonal(seed = seed)),
@@ -74,6 +73,7 @@ def Value_net(
 
     model = Model([start_input, goal_input, state_seq_input, action_input], value)
     model.compile(optimizer=Adam(learning_rate = lr), loss=tf.keras.losses.MeanSquaredError())
+    # model.compile(optimizer=RMSprop(learning_rate = lr), loss=tf.keras.losses.MeanSquaredError()) #CH
 
     return model
 

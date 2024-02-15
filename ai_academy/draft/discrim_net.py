@@ -59,8 +59,6 @@ def Discrim_net(
     
     one_hot_action = layers.CategoryEncoding(n_actions, "one_hot")(action_input)
 
-    # padded_embed = pad_sequences(embed, padding='post')
-
     x_rnn = layers.RNN(
         layers.StackedRNNCells(
             [layers.GRUCell(hidden_dim, kernel_initializer=glorot_uniform(seed = seed), recurrent_initializer=orthogonal(seed = seed)),
@@ -75,9 +73,6 @@ def Discrim_net(
     x = layers.Dense(hidden_dim, activation='relu', kernel_initializer=glorot_uniform(seed = seed))(x)
     prob = layers.Dense(1, activation='sigmoid')(x)
     
-    # logit = layers.Dense(1, activation='linear')(x)
-    # model = Model([start_input, goal_input, state_seq_input], logit)
-    # model.compile(optimizer=Adam(learning_rate=0.01), loss=tf.keras.losses.BinaryCrossentropy(from_logits=True))
 
     model = Model([start_input, goal_input, state_seq_input, action_input], prob)
     model.compile(optimizer=Adam(learning_rate = lr), loss=tf.keras.losses.BinaryCrossentropy())

@@ -1,4 +1,3 @@
-# from draft import  discrim_net, policy_net, value_net
 import tensorflow as tf
 import math
 import random
@@ -77,11 +76,11 @@ def train(
         learner_loader = sample_batch(batch, learner_obs, learner_act, learner_len, start_state, goal_state, 3)
         expert_loader = sample_batch(batch, expert_obs, expert_act, expert_len, start_state, goal_state, 3)
         
-        for (batch_learner_obs, batch_learner_act, batch_learner_len, batch_learner_start_state, batch_learner_goal_state) ,\
-        (batch_expert_obs, batch_expert_act, batch_expert_len, batch_expert_start_state, batch_expert_goal_state) in zip(learner_loader, expert_loader):
+        for (batch_learner_obs, batch_learner_act, _, batch_learner_start_state, batch_learner_goal_state) ,\
+        (batch_expert_obs, batch_expert_act, _, batch_expert_start_state, batch_expert_goal_state) in zip(learner_loader, expert_loader):
             discrim_model = train_discrim_step(discrim_model,
-                            batch_learner_obs, batch_learner_act, batch_learner_len,
-                            batch_expert_obs, batch_expert_act, batch_expert_len,
+                            batch_learner_obs, batch_learner_act,
+                            batch_expert_obs, batch_expert_act,
                             batch_learner_start_state, batch_learner_goal_state,
                             batch_expert_start_state, batch_expert_goal_state)
 
@@ -101,13 +100,11 @@ def train(
 
 def train_discrim_step(
     discrim_model,
-    learner_obs, learner_act, learner_len,
-    expert_obs, expert_act, expert_len,
+    learner_obs, learner_act,
+    expert_obs, expert_act,
     learner_start_state, learner_goal_state,
     expert_start_state, expert_goal_state):
-    
-    ## ================= solution 1 ==================================
-    
+
     with tf.GradientTape() as tape:
         
         learner_target = discrim_model([learner_start_state, learner_goal_state, learner_obs, learner_act])
@@ -122,13 +119,6 @@ def train_discrim_step(
     
     # print(f"expert acc : {(expert_target.numpy()<0.5).mean()}  ; learner acc : {(learner_target.numpy()>0.5).mean()}")
     # print(f"discrim loss : {total_loss}")
-
-
-    ## ================= solution 2 ==================================
-    # input_data = tf.concat([[learner_start_state, learner_goal_state, learner_obs, learner_act],
-    #               [expert_start_state, expert_goal_state, expert_obs, expert_act]], axis = 0) 
-    # target_data = tf.concat([tf.zeros(learner_len,), tf.ones(expert_len,)], axis = 0)
-    # discrim_model.fit(input_data, target_data)
     
     return discrim_model
 
@@ -142,7 +132,7 @@ def train_policy_and_value_step(
     c_1 = 1,
     c_2 = 0.01):
 
-    ## TODO: learner_act = learner_act.squeeze()
+    ## TODO: learner_act = learner_act.squeeze() #CH
     return_values = calculate_return(policy_model, value_model, discrim_model, env, learner_obs, learner_act, learner_len, start_state, goal_state)
 
     with tf.GradientTape() as tape1, tf.GradientTape() as tape2:
@@ -174,39 +164,32 @@ def train_policy_and_value_step(
 
 
 def calculate_return(
-    policy_net, value_net,
-    discrim_model,
+    policy_net, value_net, discrim_model,
     env,
     learner_obs, learner_act, learner_len,
-    start_state, goal_state, gamma = 0.95):
+    start_state, goal_state, gamma = 0.95): #CH 0.99
 
     batch_size = learner_obs.shape[0]
     discrim_rewards = get_reward(discrim_model, [start_state, goal_state, learner_obs, learner_act])
-    current_state = learner_obs[range(batch_size), learner_len-1, :]
-    new_states, rewards, is_terminal_new_states = env.step_vectorized(current_state, tf.convert_to_tensor(learner_act.squeeze(1))) ## Change actions from (batch, 1) to (batch, )
+    current_state = learner_obs[np.arange(batch_size), learner_len-1, :]
+    new_states, _, is_terminal_new_states = env.step_vectorized(current_state, tf.convert_to_tensor(learner_act.squeeze(1))) ## Change actions from (batch, 1) to (batch, )
 
-    new_learner_obs = tf.zeros((batch_size, learner_obs.shape[1] + 1, 3)).numpy()
+    new_learner_obs = np.zeros((batch_size, learner_obs.shape[1] + 1, 3))
     new_learner_obs[:, :learner_obs.shape[1], :] = learner_obs
-    new_learner_obs[range(batch_size), learner_len, :] = new_states
+    new_learner_obs[np.arange(batch_size), learner_len, :] = new_states
 
     action_prob = policy_net([start_state, goal_state, new_learner_obs])
 
-    all_actions = list(range(6)) # 6 is n_actions
-    next_values = [value_net([start_state, goal_state, new_learner_obs, tf.repeat(tf.expand_dims([action], 0), batch_size, 0)]) for action in all_actions]
+    all_actions = np.arange(6) # 6 is n_actions
+    next_values = [value_net([start_state, goal_state, new_learner_obs, np.repeat(np.expand_dims([action], 0), batch_size, 0)]) for action in all_actions]
     next_values = np.concatenate(next_values, axis = 1)
     next_values[is_terminal_new_states] = 0 ## remove the estimated value of the terminal nodes
 
-
     # print(tf.reduce_mean(rewards).numpy(),"  ", tf.reduce_mean(discrim_rewards).numpy(), "  ",  tf.reduce_mean(rewards + discrim_rewards).numpy())
-
     # if(np.any(np.all(goal_state[0, :] == current_state, axis = 1))):
     #     raise Exception
     # if(np.any(is_terminal_new_states)):
     #     print("here")
-
-   
-    # expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + rewards.squeeze()
-    # expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + tf.squeeze((rewards + discrim_rewards))
     expected_return = gamma * tf.reduce_sum(next_values * action_prob.probs, axis = 1) + tf.squeeze(discrim_rewards)
 
     return expected_return
@@ -216,7 +199,8 @@ def calculate_return(
 def get_reward(model, data):
     prob = model(data)
 
-    return - tf.math.log(tf.clip_by_value(prob, 1e-10, 1))
+    return - tf.math.log(tf.clip_by_value(prob, 1e-10, 1)) 
+    # return - tf.math.log(tf.clip_by_value(prob, 1e-10, 1))/25 #CH
 
 
 
@@ -226,15 +210,15 @@ def unroll_traj(
         batch_size, num_trajs, max_len
         ):
     
-    learner_obs = -1 * tf.ones((num_trajs, max_len + 1, 3)).numpy()
-    learner_actions = -1 * tf.ones((num_trajs, max_len)).numpy()
-    learner_len = tf.zeros((num_trajs, ), dtype=tf.dtypes.int32).numpy()
-    learner_reward = tf.zeros((num_trajs, max_len)).numpy()
+    learner_obs = -1 * np.ones((num_trajs, max_len + 1, 3))
+    learner_actions = -1 * np.ones((num_trajs, max_len))
+    learner_len = np.zeros((num_trajs, ), dtype=np.int32)
+    learner_reward = np.zeros((num_trajs, max_len))
 
     out_max_length = 0
     processed = 0
 
-    for i in range(int(tf.math.ceil(num_trajs / batch_size))):
+    for i in range(int(np.ceil(num_trajs / batch_size))):
 
         if num_trajs - processed >= batch_size:
             batch_obs, batch_act, batch_len, batch_reward = unroll_batch(start_obs[(i*batch_size):((i+1)*batch_size), :], goal_state[(i*batch_size):((i+1)*batch_size), :],
@@ -276,27 +260,33 @@ def unroll_batch(
         ):
     
     batch_size = start_obs.shape[0]
-    obs = tf.expand_dims(start_obs, 1) ## Making a (batch, 3) tensor to (batch, len_of_seq, 3) where len_of_seq is 1 now
-    obs_len = tf.ones((batch_size), dtype=tf.dtypes.int32) ## Size of len_of_seq for each batch
-    actions = tf.zeros((batch_size, 1))
-    rewards = tf.zeros((batch_size, 1))
-    last_actions = -1 * tf.ones((batch_size))
+    obs = np.expand_dims(start_obs, 1) ## Making a (batch, 3) tensor to (batch, len_of_seq, 3) where len_of_seq is 1 now
+    obs_len = np.ones((batch_size), dtype=np.int32) ## Size of len_of_seq for each batch
+    actions = np.zeros((batch_size, 1))
+    rewards = np.zeros((batch_size, 1))
+    last_actions = -1 * np.ones((batch_size))
 
-    done_mask = tf.zeros((batch_size), tf.bool).numpy()
+
+    # CH
+    # obs = np.zeros((batch_size, max_len, 3))
+    # obs[np.arange(batch_size), 0, :] = start_obs
+    # obs_len = np.ones((batch_size), dtype=np.int32) ## Size of len_of_seq for each batch
+    # actions = np.zeros((batch_size, max_len))
+    # rewards = np.zeros((batch_size, max_len))
+
+    done_mask = np.zeros((batch_size),dtype=bool)
 
 
     for i in range(max_len):
         
 
         ## Selects samples that are not done yet
-        notdone_obs = tf.boolean_mask(obs, ~done_mask, axis=0)
-        # notdone_obs_len = obs_len[~done_mask]
-        # print(f"------{notdone_obs.shape[0]} more")
+        notdone_obs = obs[~done_mask, :, :]
         if notdone_obs.shape[0] == 0:
             break
 
         ## select the last in each batch (len_of_seq = to the last)
-        action_dist = policy_net([notdone_obs[:, 0, :], tf.boolean_mask(goal_state, ~done_mask, axis=0), notdone_obs])
+        action_dist = policy_net([notdone_obs[:, 0, :], goal_state[~done_mask, :], notdone_obs])
 
         action = action_dist.sample()
 
@@ -328,18 +318,19 @@ def unroll_batch(
             raise Exception
         
         new_state, reward, done = env.step_vectorized(notdone_obs[:, -1, :], action)
-        new_column = tf.zeros((batch_size, 1, 3)).numpy() # since zeros are masked
+        new_column = np.zeros((batch_size, 1, 3)) # since zeros are masked
         new_column[~done_mask, 0, :] = new_state
-        obs = tf.concat([obs, new_column], 1) ## Concat should be in second dim (len_of_seq)
+        obs = np.concatenate([obs, new_column], 1) ## Concat should be in second dim (len_of_seq)
+        # obs[~done_mask, i, :] = new_state #CH
         
-        
-        new_column = tf.zeros((batch_size, 1)).numpy()
+        new_column = np.zeros((batch_size, 1))
         new_column[~done_mask, 0] = action
-        actions = tf.concat([actions, new_column], 1) ## Concat should be in second dim (len_of_seq)
+        actions = np.concatenate([actions, new_column], 1) ## Concat should be in second dim (len_of_seq)
+        # actions[~done_mask, i] = action #CH
 
-        new_column = tf.zeros((batch_size, 1)).numpy()
         new_column[~done_mask] = reward
-        rewards = tf.concat([rewards, new_column], 1) ## Concat should be in second dim (len_of_seq)
+        rewards = np.concatenate([rewards, new_column], 1) ## Concat should be in second dim (len_of_seq)
+        # rewards[~done_mask, i] = reward #CH
 
         
         done_mask[~done_mask] = done 
@@ -364,5 +355,9 @@ def unroll_batch(
         
     actions = actions[:, 1:]
     rewards = rewards[:, 1:]
+
+    # CH
+    # actions = actions.squeeze(-1)
+    # rewards = rewards.squeeze(-1)
     
     return obs, actions, obs_len, rewards

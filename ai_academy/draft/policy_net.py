@@ -53,7 +53,6 @@ def Policy_net(
     # embed = layers.Reshape((-1, n_space * hidden_dim))(embed)
     embed = layers.Concatenate(axis=2)([embed_x, embed_y, embed_z])
     
-     # padded_embed = pad_sequences(embed, padding='post')
     x_rnn = layers.RNN(
         layers.StackedRNNCells(
         [layers.GRUCell(hidden_dim, kernel_initializer=glorot_uniform(seed = seed), recurrent_initializer=orthogonal(seed = seed)),
@@ -67,14 +66,8 @@ def Policy_net(
     x = layers.Dense(hidden_dim, activation='relu', kernel_initializer=glorot_uniform(seed = seed))(x)
     x = layers.Dense(hidden_dim, activation='relu', kernel_initializer=glorot_uniform(seed = seed))(x)
     x = layers.Dense(n_actions, activation='linear', kernel_initializer=glorot_uniform(seed = seed))(x)
-
-    # last_states = state_seq_input[:, seq_len-1, :] ## TODO We have to have access to the sequence lengths not seq_len
-    # action_domain = tf.zeros((n_features, n_actions)) ##TODO should put 1 for terminal state ## Not sure ... check the code
-
-    # output = tf.where(tf.cast(1-action_domain[last_states], tf.bool), 1e-32, x)
-    # output = layers.Dense(n_actions, activation='relu')(x)
     
-    # prob = layers.Softmax(axis=1)(output)
+    # prob = layers.Dense(1, activation='sigmoid')(x) #CH
     prob = layers.Softmax(axis=1)(x)
 
     action_dist = tfp.layers.DistributionLambda(lambda p: tfp.distributions.Categorical(probs = p))(prob)
