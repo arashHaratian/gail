@@ -21,7 +21,7 @@ batch = 32
 n_space = 3
 n_actions = 6
 max_len = 40
-num_trajs = 100
+num_trajs = 150
 
 env_option = ['disaster_3d', 17]
 env_dim = tf.constant([8, 8, 6])

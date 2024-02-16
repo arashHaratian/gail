@@ -73,8 +73,8 @@ def train(
     
 
     for _ in range(num_discrim_update):
-        learner_loader = sample_batch(batch, learner_obs, learner_act, learner_len, start_state, goal_state, 3)
-        expert_loader = sample_batch(batch, expert_obs, expert_act, expert_len, start_state, goal_state, 3)
+        learner_loader = sample_batch(batch, learner_obs, learner_act, learner_len, start_state, goal_state, 7)
+        expert_loader = sample_batch(batch, expert_obs, expert_act, expert_len, start_state, goal_state, 7)
         
         for (batch_learner_obs, batch_learner_act, _, batch_learner_start_state, batch_learner_goal_state) ,\
         (batch_expert_obs, batch_expert_act, _, batch_expert_start_state, batch_expert_goal_state) in zip(learner_loader, expert_loader):
