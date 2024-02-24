@@ -36,7 +36,7 @@ def shorten_traj(sampled_obs, sampled_len, shorten_traj_len):
 def sample_batch(batch, observations, actions, length, start, goal, sort_by_len =True, shorten_traj_len = 0):
     
     data_size = observations.shape[0] ## number of trajs
-    idx = list(range(data_size))
+    idx = np.arange(data_size)
     random.shuffle(idx)
     
     for i in range(math.ceil(data_size/batch)): 

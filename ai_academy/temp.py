@@ -25,7 +25,7 @@ num_trajs = 150
 
 env_option = ['disaster_3d', 17]
 env_dim = tf.constant([8, 8, 6])
-num_train_iter = 500
+num_train_iter = 3000
 n_features = 8
 
 total_rewards = np.zeros((num_train_iter, num_trajs))
